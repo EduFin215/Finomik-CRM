@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: #0B3064;
+    --color-white: #FFFFFF;
+    --color-brand-100: #C8D0DD;
+    --color-brand-200: #8F9EB7;
+    --color-brand-300: #5574A7;
+    --color-brand-400: #3E5374;
+    --color-brand-500: #3C4C67;
+    --color-brand-600: #114076;
+  }
+  /* Titles: Montserrat Extrabold (800) */
+  .font-title { font-family: 'Montserrat', sans-serif; font-weight: 800; }
+  /* Subtitles: Montserrat Bold (700) */
+  .font-subtitle { font-family: 'Montserrat', sans-serif; font-weight: 700; }
+  /* Body: Montserrat Regular (400) - default */
+  .font-body { font-family: 'Montserrat', sans-serif; font-weight: 400; }
+  /* Mejor scroll en móvil */
+  @media (max-width: 1023px) {
+    .overflow-x-auto { -webkit-overflow-scrolling: touch; }
+  }
+}

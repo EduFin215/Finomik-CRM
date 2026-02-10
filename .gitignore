@@ -1,0 +1,24 @@
+### Node / build artefacts
+node_modules
+dist
+.vite
+
+### Env files (Supabase keys, etc.)
+.env
+.env.local
+.env.*.local
+
+### Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+### Editor / OS
+.vscode
+.idea
+.DS_Store
+*.swp
+
+### Test / coverage (por si en el futuro añades tests)
+coverage
