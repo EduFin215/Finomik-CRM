@@ -16,17 +16,17 @@ export const ToastContainer: React.FC = () => {
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg ${
+            className={`flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-xl backdrop-blur-sm ${
               t.type === 'error'
-                ? 'bg-red-50 border-red-200 text-red-800'
-                : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                ? 'bg-red-50/95 border-red-200/60 text-red-800'
+                : 'bg-emerald-50/95 border-emerald-200/60 text-emerald-800'
             }`}
           >
             <p className="flex-1 text-sm font-body">{t.message}</p>
             <button
               type="button"
               onClick={() => removeToast(t.id)}
-              className="p-1 rounded-lg hover:bg-black/10 transition-colors"
+              className="p-1.5 rounded-xl hover:bg-black/10 transition-colors"
               aria-label="Cerrar"
             >
               <X size={16} />

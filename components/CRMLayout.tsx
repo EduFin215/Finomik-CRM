@@ -1,18 +1,18 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { NavLink, Link, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Table as TableIcon,
   Kanban,
+  Briefcase,
+  FolderOpen,
   Calendar as CalendarIcon,
   Upload,
   Search,
   Bell,
   Settings,
   PlusCircle,
-  LogOut,
-  Home,
   Menu,
   X,
 } from 'lucide-react';
@@ -24,14 +24,17 @@ import { useUpcomingReminders, getUpcomingReminderItems } from '../hooks/useUpco
 import { useReminderSettings } from '../hooks/useReminderSettings';
 import SchoolDetail from './SchoolDetail';
 import NewSchoolModal from './NewSchoolModal';
+import { ToolLayout } from './layout/ToolLayout';
 import { useToast } from '../context/ToastContext';
 import { ToastContainer } from './ToastContainer';
 import { CRMProvider, useCRM } from '../context/CRMContext';
 import { useAuth } from '../hooks/useAuth';
+import { TOOLS } from '../config/tools';
+
+const CRM_TOOL = TOOLS.find((t) => t.id === 'crm')!;
 
 function CRMLayoutInner() {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
   const {
     schools,
     filteredSchools,
@@ -61,21 +64,47 @@ function CRMLayoutInner() {
   );
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const searchSlot = (
+    <>
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-400 w-4 h-4 pointer-events-none" />
+      <input
+        type="text"
+        placeholder="Buscar por nombre, ciudad..."
+        className="w-full pl-10 pr-3 sm:pr-4 py-2.5 bg-brand-100/50 border border-brand-200/60 focus:bg-white focus:border-primary rounded-xl text-sm transition-all outline-none font-body text-primary placeholder:text-brand-400"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+      />
+    </>
+  );
+
+  const notificationsSlot = (
+    <NotificationsDropdown
+      upcomingReminders={upcomingReminders}
+      onSelectSchool={setSelectedSchoolId}
+      onGoToCalendar={() => navigate('/crm/calendar')}
+    />
+  );
+
   return (
-    <div className="flex h-full w-full overflow-hidden bg-white">
+    <ToolLayout
+      currentTool={CRM_TOOL}
+      searchSlot={searchSlot}
+      notificationsSlot={notificationsSlot}
+    >
+      <div className="flex h-full w-full overflow-hidden bg-white">
       {/* Overlay móvil cuando el menú está abierto */}
       {sidebarOpen && (
         <button
           type="button"
           aria-label="Cerrar menú"
           onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 lg:hidden"
         />
       )}
 
       <aside
         className={`
-          fixed lg:static inset-y-0 left-0 z-50 w-64 bg-primary text-white flex flex-col shrink-0
+          fixed lg:static inset-y-0 left-0 z-50 w-64 bg-primary/95 backdrop-blur-xl text-white flex flex-col shrink-0
           transform transition-transform duration-200 ease-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
@@ -85,7 +114,7 @@ function CRMLayoutInner() {
           <button
             type="button"
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-2 text-brand-200 hover:text-white rounded-lg"
+            className="lg:hidden p-2 text-brand-200 hover:text-white rounded-xl"
             aria-label="Cerrar menú"
           >
             <X size={24} />
@@ -93,14 +122,6 @@ function CRMLayoutInner() {
         </div>
         <div className="px-4 pb-2 flex flex-col items-center gap-2">
           <span className="text-[10px] uppercase tracking-widest text-brand-200 font-body">CRM Educativo</span>
-          <NavLink
-            to="/"
-            onClick={() => setSidebarOpen(false)}
-            className="w-full flex items-center justify-center gap-2 py-2.5 mt-1 rounded-lg transition-colors text-sm font-bold text-brand-200 hover:text-white hover:bg-brand-600/80 border border-brand-600/50"
-          >
-            <Home size={18} />
-            <span>Cambiar de herramienta</span>
-          </NavLink>
         </div>
         {!isSupabaseConfigured() && (
           <div className="mx-4 mb-2 px-3 py-2 rounded-lg bg-amber-500/20 text-amber-200 text-xs font-body">
@@ -113,7 +134,7 @@ function CRMLayoutInner() {
             className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-primary/30"
           >
             <PlusCircle size={20} />
-            <span>Nuevo Centro</span>
+            <span>Nuevo Cliente</span>
           </button>
         </div>
         <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
@@ -121,42 +142,60 @@ function CRMLayoutInner() {
             to="/crm/dashboard"
             onClick={() => setSidebarOpen(false)}
             className={({ isActive }) =>
-              `w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-bold ${isActive ? 'bg-brand-600 text-white border-l-4 border-white rounded-l-none' : 'text-brand-200 hover:bg-brand-600/80'}`
+              `w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-bold ${isActive ? 'bg-brand-600 text-white' : 'text-brand-200 hover:bg-white/10'}`
             }
           >
             <LayoutDashboard size={20} />
             <span>Dashboard</span>
           </NavLink>
-          <div className="pt-4 pb-2 px-4 text-[11px] font-bold text-brand-200 uppercase tracking-wider">Gestión de Pipeline</div>
+          <NavLink
+            to="/crm/clients"
+            onClick={() => setSidebarOpen(false)}
+            className={({ isActive }) =>
+              `w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-bold ${isActive ? 'bg-brand-600 text-white' : 'text-brand-200 hover:bg-white/10'}`
+            }
+          >
+            <TableIcon size={20} />
+            <span>Clients</span>
+          </NavLink>
+          <NavLink
+            to="/crm/deals"
+            onClick={() => setSidebarOpen(false)}
+            className={({ isActive }) =>
+              `w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-bold ${isActive ? 'bg-brand-600 text-white' : 'text-brand-200 hover:bg-white/10'}`
+            }
+          >
+            <Briefcase size={20} />
+            <span>Deals</span>
+          </NavLink>
+          <NavLink
+            to="/crm/projects"
+            onClick={() => setSidebarOpen(false)}
+            className={({ isActive }) =>
+              `w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-bold ${isActive ? 'bg-brand-600 text-white' : 'text-brand-200 hover:bg-white/10'}`
+            }
+          >
+            <FolderOpen size={20} />
+            <span>Projects</span>
+          </NavLink>
+          <div className="pt-4 pb-2 px-4 text-[11px] font-bold text-brand-200 uppercase tracking-wider">Pipeline</div>
           <NavLink
             to="/crm/pipeline"
             onClick={() => setSidebarOpen(false)}
             className={({ isActive }) =>
-              `w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-bold ${isActive ? 'bg-brand-600 text-white border-l-4 border-white rounded-l-none' : 'text-brand-200 hover:bg-brand-600/80'}`
+              `w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-bold ${isActive ? 'bg-brand-600 text-white' : 'text-brand-200 hover:bg-white/10'}`
             }
           >
             <Kanban size={20} />
             <span>Pipeline (Kanban)</span>
-          </NavLink>
-          <NavLink
-            to="/crm/schools"
-            onClick={() => setSidebarOpen(false)}
-            className={({ isActive }) =>
-              `w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-bold ${isActive ? 'bg-brand-600 text-white border-l-4 border-white rounded-l-none' : 'text-brand-200 hover:bg-brand-600/80'}`
-            }
-          >
-            <TableIcon size={20} />
-            <span>Lista de Escuelas</span>
           </NavLink>
           <div className="pt-4 pb-2 px-4 text-[11px] font-bold text-brand-200 uppercase tracking-wider">Actividad</div>
           <NavLink
             to="/crm/calendar"
             onClick={() => setSidebarOpen(false)}
             className={({ isActive }) =>
-              `w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-bold ${
-                isActive
-                  ? 'bg-brand-600 text-white border-l-4 border-white rounded-l-none'
-                  : 'text-brand-200 hover:bg-brand-600/80'
+              `w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-bold ${
+                isActive ? 'bg-brand-600 text-white' : 'text-brand-200 hover:bg-white/10'
               }`
             }
           >
@@ -167,19 +206,19 @@ function CRMLayoutInner() {
             to="/crm/import"
             onClick={() => setSidebarOpen(false)}
             className={({ isActive }) =>
-              `w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-bold ${isActive ? 'bg-brand-600 text-white border-l-4 border-white rounded-l-none' : 'text-brand-200 hover:bg-brand-600/80'}`
+              `w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-bold ${isActive ? 'bg-brand-600 text-white' : 'text-brand-200 hover:bg-white/10'}`
             }
           >
             <Upload size={20} />
             <span>Importar Excel</span>
           </NavLink>
         </nav>
-        <div className="p-4 border-t border-brand-600">
+        <div className="p-4 border-t border-brand-600/50">
           <NavLink
             to="/crm/settings"
             onClick={() => setSidebarOpen(false)}
             className={({ isActive }) =>
-              `w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-bold ${isActive ? 'bg-brand-600 text-white border-l-4 border-white rounded-l-none' : 'text-brand-200 hover:bg-brand-600/80'}`
+              `w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-bold ${isActive ? 'bg-brand-600 text-white' : 'text-brand-200 hover:bg-white/10'}`
             }
           >
             <Settings size={20} />
@@ -189,62 +228,16 @@ function CRMLayoutInner() {
       </aside>
 
       <main className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
-        <header className="relative z-[30] h-14 sm:h-16 bg-gradient-to-b from-primary/5 to-white border-b border-brand-200 flex items-center justify-between gap-2 px-3 sm:px-6 lg:px-8 shrink-0">
-          <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 text-brand-500 hover:bg-brand-100/50 rounded-lg shrink-0"
-              aria-label="Abrir menú"
-            >
-              <Menu size={24} />
-            </button>
-            <div className="relative flex-1 min-w-0 max-w-xl">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-400 w-4 h-4 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Buscar por nombre, ciudad..."
-                className="w-full pl-10 pr-3 sm:pr-4 py-2 bg-brand-100/50 border-transparent focus:bg-white focus:border-primary rounded-lg text-sm transition-all outline-none font-body text-primary placeholder:text-brand-400"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-1 sm:gap-4 shrink-0">
-            <Link
-              to="/"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-brand-600 hover:bg-brand-100/50 hover:text-primary font-bold text-sm transition-colors border border-transparent hover:border-brand-200"
-              title="Volver a la selección de herramientas"
-            >
-              <Home size={18} />
-              <span className="hidden sm:inline">Cambiar de herramienta</span>
-            </Link>
-            <NotificationsDropdown
-              upcomingReminders={upcomingReminders}
-              onSelectSchool={setSelectedSchoolId}
-              onGoToCalendar={() => navigate('/crm/calendar')}
-            />
-            <div className="flex items-center gap-3 pl-2">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-bold text-primary">{user?.email ?? 'Usuario'}</p>
-                <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary text-white px-2 py-0.5 text-[10px] font-bold tracking-wide">
-                  <span className="w-1.5 h-1.5 rounded-full bg-white/80" />
-                  CRM Finomik
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => signOut()}
-                className="flex items-center gap-2 px-3 py-2 text-brand-500 hover:bg-brand-100/50 hover:text-primary rounded-lg text-sm font-body transition-colors"
-                title="Cerrar sesión"
-              >
-                <LogOut size={18} />
-                <span className="hidden sm:inline">Cerrar sesión</span>
-              </button>
-            </div>
-          </div>
-        </header>
-
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-brand-100 lg:hidden">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 text-brand-600 hover:bg-brand-100/50 rounded-xl shrink-0"
+            aria-label="Abrir menú"
+          >
+            <Menu size={24} />
+          </button>
+        </div>
         <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
           {isLoading && (
             <div className="flex items-center justify-center py-20">
@@ -272,6 +265,7 @@ function CRMLayoutInner() {
         />
       )}
     </div>
+    </ToolLayout>
   );
 }
 
@@ -290,7 +284,7 @@ function NotificationsDropdown({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="p-2 text-brand-500 hover:bg-brand-100/50 rounded-full relative transition-colors"
+        className="p-2 text-brand-600 hover:bg-brand-100/50 rounded-full relative transition-colors"
         aria-expanded={open}
         aria-label="Notificaciones"
       >
@@ -302,7 +296,7 @@ function NotificationsDropdown({
       {open && (
         <>
           <div className="fixed inset-0 z-40" aria-hidden onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-2 w-[min(20rem,calc(100vw-2rem))] max-h-[70vh] overflow-y-auto bg-white rounded-xl border border-brand-200 shadow-lg z-50 py-2">
+          <div className="absolute right-0 top-full mt-2 w-[min(20rem,calc(100vw-2rem))] max-h-[70vh] overflow-y-auto bg-white/95 backdrop-blur-sm rounded-xl border border-brand-200/60 shadow-dropdown z-50 py-2">
             <div className="px-4 py-2 border-b border-brand-100">
               <h3 className="font-bold text-primary text-sm">Notificaciones</h3>
             </div>
@@ -440,7 +434,7 @@ export default function CRMLayout() {
   const navigateToView = (tab: 'table' | 'pipeline', filters?: { phase?: Phase[]; status?: CommercialStatus[] }) => {
     setPhaseFilter(filters?.phase ?? []);
     setStatusFilter(filters?.status ?? []);
-    navigate(tab === 'table' ? '/crm/schools' : '/crm/pipeline');
+    navigate(tab === 'table' ? '/crm/clients' : '/crm/pipeline');
   };
 
   const scheduleMeeting = async (

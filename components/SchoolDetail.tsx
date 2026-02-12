@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { School, Phase, CommercialStatus, Activity, Task, TaskPriority } from '../types';
 import { PHASE_COLORS, STATUS_COLORS, PRIORITY_COLORS } from '../constants';
 import { addActivity as addActivityApi, createTask as createTaskApi, updateTask } from '../services/schools';
@@ -12,8 +12,42 @@ import {
   X, Phone, Mail, MapPin, User, Calendar,
   MessageSquare, CheckCircle,
   Plus, Send, Clock,
-  TrendingUp
+  TrendingUp, Link2, ExternalLink, Copy
 } from 'lucide-react';
+import { getResourcesByEntity, createResource, linkExistingResource } from '../services/resources';
+import { ResourceFormModal } from '../modules/resources/ResourceFormModal';
+import { ResourceLinkModal } from '../modules/resources/ResourceLinkModal';
+import type { ResourceFormState } from '../modules/resources/ResourceFormModal';
+import type { ResourceWithLinks } from '../types';
+
+function ResourceCard({ resource }: { resource: ResourceWithLinks }) {
+  return (
+    <div className="bg-white p-4 rounded-xl border border-brand-200/60 shadow-card flex items-center justify-between gap-3">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-bold text-primary truncate">{resource.title}</p>
+        <p className="text-[10px] text-brand-500 font-body">{resource.type} · {resource.status}</p>
+      </div>
+      <div className="flex items-center gap-1 shrink-0">
+        <button
+          type="button"
+          onClick={() => window.open(resource.url, '_blank')}
+          className="p-1.5 rounded-xl text-brand-500 hover:bg-brand-100/50 transition-colors"
+          title="Abrir"
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => navigator.clipboard.writeText(resource.url)}
+          className="p-1.5 rounded-xl text-brand-500 hover:bg-brand-100/50 transition-colors"
+          title="Copiar enlace"
+        >
+          <Copy className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 interface SchoolDetailProps {
   school: School;
@@ -25,19 +59,27 @@ interface SchoolDetailProps {
 
 const SchoolDetail: React.FC<SchoolDetailProps> = ({ school, onClose, onUpdate, onDelete, refetchSchools }) => {
   const toast = useToast();
+  const queryClient = useQueryClient();
   const { data: profiles = [] } = useQuery({ queryKey: ['profiles'], queryFn: getProfiles, enabled: isSupabaseConfigured() });
   const { data: auditLog = [] } = useQuery({
     queryKey: ['audit', school.id],
     queryFn: () => getAuditLogBySchool(school.id),
     enabled: isSupabaseConfigured() && activeTab === 'audit',
   });
-  const [activeTab, setActiveTab] = useState<'info' | 'negotiation' | 'tasks' | 'history' | 'audit'>('info');
+  const { data: resourcesByEntity = { primary: [], others: [] } } = useQuery({
+    queryKey: ['resourcesByEntity', 'client', school.id],
+    queryFn: () => getResourcesByEntity('client', school.id),
+    enabled: isSupabaseConfigured() && activeTab === 'resources',
+  });
+  const [activeTab, setActiveTab] = useState<'info' | 'negotiation' | 'tasks' | 'history' | 'audit' | 'resources'>('info');
   const [notesText, setNotesText] = useState(school.notes);
   const [newActivity, setNewActivity] = useState('');
   const [activityType, setActivityType] = useState<'Llamada' | 'Email' | 'Reunión' | 'Nota'>('Nota');
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showUnsavedNotesConfirm, setShowUnsavedNotesConfirm] = useState(false);
+  const [showResourceForm, setShowResourceForm] = useState(false);
+  const [showResourceLinkModal, setShowResourceLinkModal] = useState(false);
 
   useEffect(() => {
     setNotesText(school.notes);
@@ -243,18 +285,19 @@ const SchoolDetail: React.FC<SchoolDetailProps> = ({ school, onClose, onUpdate, 
           </div>
         </div>
 
-        <div className="flex border-b border-brand-200 px-6">
-          {(['info', 'negotiation', 'tasks', 'history', 'audit'] as const).map(tab => (
+        <div className="flex border-b border-brand-200 px-6 overflow-x-auto">
+          {(['info', 'negotiation', 'tasks', 'history', 'audit', 'resources'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-4 text-sm font-bold border-b-2 transition-all ${activeTab === tab ? 'border-brand-600 text-brand-600' : 'border-transparent text-brand-500 hover:text-primary'}`}
+              className={`px-4 py-4 text-sm font-bold border-b-2 transition-all shrink-0 ${activeTab === tab ? 'border-brand-600 text-brand-600' : 'border-transparent text-brand-500 hover:text-primary'}`}
             >
               {tab === 'info' && 'Ficha General'}
               {tab === 'negotiation' && 'Seguimiento'}
               {tab === 'tasks' && 'Tareas'}
               {tab === 'history' && 'Historial'}
               {tab === 'audit' && 'Auditoría'}
+              {tab === 'resources' && 'Resources'}
             </button>
           ))}
         </div>
@@ -434,6 +477,57 @@ const SchoolDetail: React.FC<SchoolDetailProps> = ({ school, onClose, onUpdate, 
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'resources' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-xs font-bold text-brand-400 uppercase tracking-widest">Resources</h4>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowResourceLinkModal(true)}
+                    className="text-brand-600 text-xs font-bold flex items-center gap-1 hover:underline"
+                  >
+                    <Link2 size={14} /> Link existing resource
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowResourceForm(true)}
+                    className="text-brand-600 text-xs font-bold flex items-center gap-1 hover:underline"
+                  >
+                    <Plus size={14} /> Add new resource
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <h5 className="text-[10px] font-bold text-brand-500 uppercase mb-2">Primary resources</h5>
+                  {resourcesByEntity.primary.length === 0 ? (
+                    <p className="text-brand-500 text-xs font-body">No hay recursos marcados como principales.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {resourcesByEntity.primary.map((r) => (
+                        <ResourceCard key={r.id} resource={r} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <h5 className="text-[10px] font-bold text-brand-500 uppercase mb-2">All linked resources</h5>
+                  {resourcesByEntity.others.length === 0 && resourcesByEntity.primary.length === 0 ? (
+                    <p className="text-brand-500 text-xs font-body">No hay recursos vinculados a este cliente.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {resourcesByEntity.others.map((r) => (
+                        <ResourceCard key={r.id} resource={r} />
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -669,6 +763,43 @@ const SchoolDetail: React.FC<SchoolDetailProps> = ({ school, onClose, onUpdate, 
               </div>
             </div>
           </div>
+        )}
+
+        {showResourceForm && (
+          <ResourceFormModal
+            isOpen={showResourceForm}
+            onClose={() => setShowResourceForm(false)}
+            onSave={async (form: ResourceFormState) => {
+              await createResource({
+                title: form.title.trim(),
+                url: form.url.trim(),
+                type: form.type,
+                source: form.source,
+                status: form.status,
+                version: form.version || null,
+                description: form.description || null,
+                linkTo: { entityType: 'client', entityId: school.id },
+                isPrimary: form.isPrimary,
+              });
+              queryClient.invalidateQueries({ queryKey: ['resourcesByEntity', 'client', school.id] });
+              queryClient.invalidateQueries({ queryKey: ['resources'], exact: false });
+            }}
+            presetEntity={{ entityType: 'client', entityId: school.id }}
+          />
+        )}
+
+        {showResourceLinkModal && (
+          <ResourceLinkModal
+            isOpen={showResourceLinkModal}
+            onClose={() => setShowResourceLinkModal(false)}
+            onLink={async (resourceId, isPrimary) => {
+              await linkExistingResource(resourceId, 'client', school.id, isPrimary);
+              queryClient.invalidateQueries({ queryKey: ['resourcesByEntity', 'client', school.id] });
+              queryClient.invalidateQueries({ queryKey: ['resources'], exact: false });
+            }}
+            entityType="client"
+            entityId={school.id}
+          />
         )}
 
         {showDeleteConfirm && (

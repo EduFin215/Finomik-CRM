@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { supabase } from '../services/supabase';
-import { COLORS } from '../constants';
 
 interface LoginProps {
   onSuccess: () => void;
@@ -49,12 +48,12 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-brand-100/30 p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-brand-200 p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-100/20 via-white to-brand-200/10 p-4">
+      <div className="w-full max-w-md bg-white/95 backdrop-blur-sm rounded-3xl shadow-xl border border-brand-200/60 p-8">
         <div className="flex flex-col items-center mb-8">
           <img src="/finomik-logo-white.png" alt="Finomik Ecosystem" className="w-40 h-auto object-contain mb-4" />
-          <h1 className="text-xl font-extrabold text-primary">Finomik Ecosystem</h1>
-          <p className="text-sm text-brand-500 font-body mt-1 text-center">
+          <h1 className="text-2xl font-title text-primary">Finomik Ecosystem</h1>
+          <p className="text-sm text-brand-500 font-body mt-2 text-center">
             {mode === 'login'
               ? 'Inicia sesión para acceder al CRM y a las demás herramientas de la plataforma.'
               : 'Crea tu cuenta para acceder al CRM y a las demás herramientas de la plataforma.'}
@@ -63,7 +62,7 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="login-email" className="block text-xs font-bold text-brand-500 uppercase tracking-wider mb-1">
+            <label htmlFor="login-email" className="block text-xs font-bold text-brand-500 uppercase tracking-wider mb-1.5">
               Email
             </label>
             <input
@@ -72,12 +71,12 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-4 py-3 rounded-xl border border-brand-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-primary font-body"
+              className="w-full px-4 py-3.5 rounded-xl border border-brand-200/80 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-primary font-body placeholder:text-brand-400"
               placeholder="tu@email.com"
             />
           </div>
           <div>
-            <label htmlFor="login-password" className="block text-xs font-bold text-brand-500 uppercase tracking-wider mb-1">
+            <label htmlFor="login-password" className="block text-xs font-bold text-brand-500 uppercase tracking-wider mb-1.5">
               Contraseña
             </label>
             <input
@@ -87,7 +86,7 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              className="w-full px-4 py-3 rounded-xl border border-brand-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-primary font-body"
+              className="w-full px-4 py-3.5 rounded-xl border border-brand-200/80 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-primary font-body placeholder:text-brand-400"
               placeholder="••••••••"
             />
           </div>
@@ -105,8 +104,7 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-xl font-bold text-white transition-all shadow-lg disabled:opacity-60"
-            style={{ backgroundColor: COLORS.primary }}
+            className="w-full py-3.5 rounded-xl font-bold text-white bg-primary hover:bg-brand-600 transition-all shadow-lg hover:shadow-xl disabled:opacity-60 disabled:hover:shadow-lg"
           >
             {loading ? 'Espera...' : mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
           </button>

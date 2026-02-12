@@ -5,24 +5,39 @@ import Login from './components/Login';
 import { useAuth } from './hooks/useAuth';
 import PlatformHub from './components/PlatformHub';
 import CRMLayout from './components/CRMLayout';
-import BillingView from './components/BillingView';
+import FinanceLayout from './modules/finance/FinanceLayout';
+import FinanceDashboard from './modules/finance/FinanceDashboard';
+import FinanceIncomePage from './modules/finance/FinanceIncomePage';
+import FinanceExpensesPage from './modules/finance/FinanceExpensesPage';
+import FinanceForecastPage from './modules/finance/FinanceForecastPage';
 import Dashboard from './components/Dashboard';
 import PipelineView from './components/PipelineView';
-import TableView from './components/TableView';
 import CalendarView from './components/CalendarView';
 import Importer from './components/Importer';
 import SettingsView from './components/SettingsView';
-import DocumentsView from './components/DocumentsView';
+import ClientsListPage from './components/clients/ClientsListPage';
+import ClientDetailPage from './components/clients/ClientDetailPage';
+import DealsListPage from './components/deals/DealsListPage';
+import ProjectsListPage from './components/projects/ProjectsListPage';
+import ResourcesView from './modules/resources/ResourcesView';
+import TasksView from './modules/tasks/TasksView';
+import MyTasksView from './modules/tasks/MyTasksView';
+import AllTasksView from './modules/tasks/AllTasksView';
+import ReportingView from './modules/reporting/ReportingView';
+import IntegrationsView from './modules/integrations/IntegrationsView';
+import GlobalSettingsView from './modules/settings/SettingsView';
+import FinnyFloatingChat from './modules/agent/FinnyFloatingChat';
 
-/** Redirects to platform hub when the app first loads with a logged-in user, unless already on hub or CRM. */
+const TOOL_PATHS = ['/crm', '/tasks', '/resources', '/finance', '/reporting', '/integrations', '/settings'];
+
+/** Redirects to platform hub when the app first loads with a logged-in user, unless already on hub or a tool. */
 function RedirectToHubOnEntry() {
   const navigate = useNavigate();
   const location = useLocation();
   useEffect(() => {
     const onHub = location.pathname === '/';
-    const onCrm = location.pathname.startsWith('/crm');
-    const onDocuments = location.pathname.startsWith('/documents');
-    if (!onHub && !onCrm && !onDocuments) {
+    const onTool = TOOL_PATHS.some((p) => location.pathname === p || location.pathname.startsWith(p + '/'));
+    if (!onHub && !onTool) {
       navigate('/', { replace: true });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- only on first entry
@@ -51,15 +66,36 @@ const App: React.FC = () => {
         <Route path="crm" element={<CRMLayout />}>
           <Route index element={<Navigate to="/crm/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
+          <Route path="clients" element={<ClientsListPage />} />
+          <Route path="clients/:id" element={<ClientDetailPage />} />
+          <Route path="deals" element={<DealsListPage />} />
+          <Route path="projects" element={<ProjectsListPage />} />
           <Route path="pipeline" element={<PipelineView />} />
-          <Route path="schools" element={<TableView />} />
+          <Route path="schools" element={<Navigate to="/crm/clients" replace />} />
           <Route path="calendar" element={<CalendarView />} />
           <Route path="import" element={<Importer />} />
           <Route path="settings" element={<SettingsView />} />
         </Route>
-        <Route path="billing" element={<BillingView />} />
-        <Route path="documents" element={<DocumentsView />} />
+        <Route path="tasks" element={<TasksView />}>
+          <Route index element={<MyTasksView />} />
+          <Route path="all" element={<AllTasksView />} />
+        </Route>
+        <Route path="resources" element={<ResourcesView />} />
+        <Route path="finance" element={<FinanceLayout />}>
+          <Route index element={<Navigate to="/finance/dashboard" replace />} />
+          <Route path="dashboard" element={<FinanceDashboard />} />
+          <Route path="income" element={<FinanceIncomePage />} />
+          <Route path="expenses" element={<FinanceExpensesPage />} />
+          <Route path="forecast" element={<FinanceForecastPage />} />
+        </Route>
+        <Route path="reporting" element={<ReportingView />} />
+        <Route path="integrations" element={<IntegrationsView />} />
+        <Route path="chat" element={<Navigate to="/" replace />} />
+        <Route path="settings" element={<GlobalSettingsView />} />
+        <Route path="billing" element={<Navigate to="/finance" replace />} />
+        <Route path="documents" element={<Navigate to="/resources" replace />} />
       </Routes>
+      <FinnyFloatingChat />
     </BrowserRouter>
   );
 };

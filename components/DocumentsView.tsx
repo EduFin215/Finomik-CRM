@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Folder,
@@ -22,6 +21,8 @@ import {
   deleteDocumentCategory,
 } from '../services/documents';
 import type { DocumentCategory, DocumentRecord } from '../types';
+import { ToolLayout } from './layout/ToolLayout';
+import { TOOLS } from '../config/tools';
 
 interface DocumentFormState {
   id?: string;
@@ -390,20 +391,12 @@ export default function DocumentsView() {
   const getCountForCategory = (categoryId: string) =>
     documents.filter((d) => d.categoryId === categoryId).length;
 
-  return (
-    <>
-      <div className="w-full flex justify-end mb-4 px-4 sm:px-0">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-brand-600 hover:bg-brand-100/50 hover:text-primary text-xs sm:text-sm font-bold border border-transparent hover:border-brand-200 transition-colors"
-          title="Volver al selector de herramientas"
-        >
-          <Folder className="w-4 h-4" />
-          <span>Cambiar de herramienta</span>
-        </Link>
-      </div>
+  const resourcesTool = TOOLS.find((t) => t.id === 'resources')!;
 
-      <div className="max-w-6xl mx-auto space-y-6">
+  return (
+    <ToolLayout currentTool={resourcesTool}>
+      <div className="overflow-auto p-4 sm:p-6">
+        <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
@@ -811,7 +804,8 @@ export default function DocumentsView() {
           </div>
         </div>
       )}
-    </>
+      </div>
+    </ToolLayout>
   );
 }
 

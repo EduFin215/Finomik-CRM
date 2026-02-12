@@ -1,0 +1,269 @@
+import { supabase, isSupabaseConfigured } from '../supabase';
+
+export interface FinanceDashboardKpis {
+  incomeThisMonth: number;
+  expensesThisMonth: number;
+  netResultThisMonth: number;
+  cashPosition: number | null;
+  forecastNext30Days: number;
+  burnRateLast3Months: number;
+  incomePrevMonth?: number;
+  expensesPrevMonth?: number;
+}
+
+export interface IncomeExpensesByMonth {
+  month: string;
+  income: number;
+  expenses: number;
+}
+
+export interface ExpensesByCategoryItem {
+  category: string;
+  amount: number;
+}
+
+export interface ForecastDay {
+  date: string;
+  projectedCash: number;
+}
+
+function getMonthRange(offset = 0): { from: string; to: string } {
+  const d = new Date();
+  d.setMonth(d.getMonth() + offset);
+  d.setDate(1);
+  const from = d.toISOString().slice(0, 10);
+  d.setMonth(d.getMonth() + 1);
+  d.setDate(0);
+  const to = d.toISOString().slice(0, 10);
+  return { from, to };
+}
+
+export async function getFinanceDashboardKpis(
+  startingCash: number | null
+): Promise<FinanceDashboardKpis> {
+  const empty: FinanceDashboardKpis = {
+    incomeThisMonth: 0,
+    expensesThisMonth: 0,
+    netResultThisMonth: 0,
+    cashPosition: null,
+    forecastNext30Days: 0,
+    burnRateLast3Months: 0,
+  };
+  if (!isSupabaseConfigured() || !supabase) return empty;
+
+  const thisMonth = getMonthRange(0);
+  const prevMonth = getMonthRange(-1);
+
+  const [invRes, expRes, prevInvRes, prevExpRes] = await Promise.all([
+    supabase
+      .from('finance_invoices')
+      .select('amount, issue_date')
+      .eq('status', 'paid')
+      .gte('issue_date', thisMonth.from)
+      .lte('issue_date', thisMonth.to),
+    supabase
+      .from('finance_expenses')
+      .select('amount, date')
+      .eq('status', 'paid')
+      .gte('date', thisMonth.from)
+      .lte('date', thisMonth.to),
+    supabase
+      .from('finance_invoices')
+      .select('amount')
+      .eq('status', 'paid')
+      .gte('issue_date', prevMonth.from)
+      .lte('issue_date', prevMonth.to),
+    supabase
+      .from('finance_expenses')
+      .select('amount')
+      .eq('status', 'paid')
+      .gte('date', prevMonth.from)
+      .lte('date', prevMonth.to),
+  ]);
+
+  const incomeThisMonth = (invRes.data ?? []).reduce((s, r) => s + Number(r.amount), 0);
+  const expensesThisMonth = (expRes.data ?? []).reduce((s, r) => s + Number(r.amount), 0);
+  const incomePrevMonth = (prevInvRes.data ?? []).reduce((s, r) => s + Number(r.amount), 0);
+  const expensesPrevMonth = (prevExpRes.data ?? []).reduce((s, r) => s + Number(r.amount), 0);
+
+  const threeMonthsAgo = getMonthRange(-3);
+  const { data: exp3 } = await supabase
+    .from('finance_expenses')
+    .select('amount')
+    .eq('status', 'paid')
+    .gte('date', threeMonthsAgo.from)
+    .lte('date', thisMonth.to);
+  const totalExp3 = (exp3 ?? []).reduce((s, r) => s + Number(r.amount), 0);
+  const burnRateLast3Months = 3 > 0 ? totalExp3 / 3 : 0;
+
+  const netResultThisMonth = incomeThisMonth - expensesThisMonth;
+  const cashPosition =
+    startingCash != null
+      ? startingCash + (await getCumulativeNetToDate(thisMonth.to))
+      : null;
+  const forecastNext30Days =
+    cashPosition != null ? cashPosition + (incomeThisMonth - expensesThisMonth) : netResultThisMonth;
+
+  return {
+    incomeThisMonth,
+    expensesThisMonth,
+    netResultThisMonth,
+    cashPosition,
+    forecastNext30Days,
+    burnRateLast3Months,
+    incomePrevMonth,
+    expensesPrevMonth,
+  };
+}
+
+async function getCumulativeNetToDate(toDate: string): Promise<number> {
+  if (!supabase) return 0;
+  const [inv, exp] = await Promise.all([
+    supabase
+      .from('finance_invoices')
+      .select('amount')
+      .eq('status', 'paid')
+      .lte('issue_date', toDate),
+    supabase
+      .from('finance_expenses')
+      .select('amount')
+      .eq('status', 'paid')
+      .lte('date', toDate),
+  ]);
+  const income = (inv.data ?? []).reduce((s, r) => s + Number(r.amount), 0);
+  const expenses = (exp.data ?? []).reduce((s, r) => s + Number(r.amount), 0);
+  return income - expenses;
+}
+
+export async function getIncomeExpensesByMonth(monthsBack = 12): Promise<IncomeExpensesByMonth[]> {
+  if (!isSupabaseConfigured() || !supabase) return [];
+  const end = getMonthRange(0);
+  const start = getMonthRange(-monthsBack);
+  return getIncomeExpensesByMonthRange(start.from, end.to);
+}
+
+/** Income vs expenses by month for a custom date range (for Reporting). */
+export async function getIncomeExpensesByMonthRange(from: string, to: string): Promise<IncomeExpensesByMonth[]> {
+  if (!isSupabaseConfigured() || !supabase) return [];
+  const [inv, exp] = await Promise.all([
+    supabase
+      .from('finance_invoices')
+      .select('amount, issue_date')
+      .eq('status', 'paid')
+      .gte('issue_date', from)
+      .lte('issue_date', to),
+    supabase
+      .from('finance_expenses')
+      .select('amount, date')
+      .eq('status', 'paid')
+      .gte('date', from)
+      .lte('date', to),
+  ]);
+  const byMonth = new Map<string, { income: number; expenses: number }>();
+  const start = new Date(from);
+  const end = new Date(to);
+  for (let d = new Date(start.getFullYear(), start.getMonth(), 1); d <= end; d.setMonth(d.getMonth() + 1)) {
+    const key = d.toISOString().slice(0, 7);
+    byMonth.set(key, { income: 0, expenses: 0 });
+  }
+  for (const r of inv.data ?? []) {
+    const key = String(r.issue_date).slice(0, 7);
+    const cur = byMonth.get(key) ?? { income: 0, expenses: 0 };
+    cur.income += Number(r.amount);
+    byMonth.set(key, cur);
+  }
+  for (const r of exp.data ?? []) {
+    const key = String(r.date).slice(0, 7);
+    const cur = byMonth.get(key) ?? { income: 0, expenses: 0 };
+    cur.expenses += Number(r.amount);
+    byMonth.set(key, cur);
+  }
+  return Array.from(byMonth.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, v]) => ({ month: month + '-01', income: v.income, expenses: v.expenses }));
+}
+
+export async function getExpensesByCategory(monthsBack = 3): Promise<ExpensesByCategoryItem[]> {
+  if (!isSupabaseConfigured() || !supabase) return [];
+  const { from } = getMonthRange(-monthsBack);
+  const { to } = getMonthRange(0);
+  return getExpensesByCategoryRange(from, to);
+}
+
+/** Expenses by category for a custom date range (for Reporting). */
+export async function getExpensesByCategoryRange(from: string, to: string): Promise<ExpensesByCategoryItem[]> {
+  if (!isSupabaseConfigured() || !supabase) return [];
+  const { data } = await supabase
+    .from('finance_expenses')
+    .select('category, amount')
+    .eq('status', 'paid')
+    .gte('date', from)
+    .lte('date', to);
+  const byCat = new Map<string, number>();
+  for (const r of data ?? []) {
+    const c = String(r.category || 'other');
+    byCat.set(c, (byCat.get(c) ?? 0) + Number(r.amount));
+  }
+  return Array.from(byCat.entries())
+    .map(([category, amount]) => ({ category, amount }))
+    .sort((a, b) => b.amount - a.amount);
+}
+
+export async function getForecastProjection(days = 90): Promise<ForecastDay[]> {
+  if (!isSupabaseConfigured() || !supabase) return [];
+  const settingsRes = await supabase.from('finance_settings').select('starting_cash').limit(1).single();
+  const startingCash = settingsRes.data?.starting_cash != null ? Number(settingsRes.data.starting_cash) : null;
+  const today = new Date().toISOString().slice(0, 10);
+  const cumulative = await getCumulativeNetToDate(today);
+  const baseCash = startingCash != null ? startingCash + cumulative : cumulative;
+
+  const { data: unpaidInvoices } = await supabase
+    .from('finance_invoices')
+    .select('amount, due_date')
+    .in('status', ['sent', 'overdue'])
+    .not('due_date', 'is', null);
+  const { data: contracts } = await supabase
+    .from('finance_contracts')
+    .select('amount, frequency')
+    .eq('status', 'active');
+  const { data: recurringExpenses } = await supabase
+    .from('finance_expenses')
+    .select('amount, due_date')
+    .eq('is_recurring', true)
+    .neq('status', 'cancelled');
+
+  const dailyIncome = new Map<string, number>();
+  const dailyExpense = new Map<string, number>();
+  for (const inv of unpaidInvoices ?? []) {
+    const d = String(inv.due_date).slice(0, 10);
+    dailyIncome.set(d, (dailyIncome.get(d) ?? 0) + Number(inv.amount));
+  }
+  for (const c of contracts ?? []) {
+    const amount = Number(c.amount);
+    const freq = String(c.frequency);
+    const perMonth = freq === 'yearly' ? amount / 12 : freq === 'quarterly' ? amount / 3 : amount;
+    const perDay = perMonth / 30;
+    for (let i = 0; i < days; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      dailyIncome.set(key, (dailyIncome.get(key) ?? 0) + perDay);
+    }
+  }
+  for (const e of recurringExpenses ?? []) {
+    const d = e.due_date ? String(e.due_date).slice(0, 10) : today;
+    dailyExpense.set(d, (dailyExpense.get(d) ?? 0) + Number(e.amount));
+  }
+
+  const result: ForecastDay[] = [];
+  let running = baseCash;
+  for (let i = 0; i < days; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    const key = d.toISOString().slice(0, 10);
+    running += dailyIncome.get(key) ?? 0;
+    running -= dailyExpense.get(key) ?? 0;
+    result.push({ date: key, projectedCash: Math.round(running * 100) / 100 });
+  }
+  return result;
+}

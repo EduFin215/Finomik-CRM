@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { FileText, Repeat, Euro, BarChart3, Receipt, CreditCard, Home } from 'lucide-react';
+import { FileText, Repeat, Euro, BarChart3, Receipt, CreditCard } from 'lucide-react';
+import { ToolLayout } from './layout/ToolLayout';
+import { TOOLS } from '../config/tools';
 import BillingContractsTab from './BillingContractsTab';
 import BillingInvoicesTab from './BillingInvoicesTab';
 import BillingVatTab from './BillingVatTab';
@@ -9,11 +10,14 @@ import BillingBankTab from './BillingBankTab';
 
 type BillingTab = 'contracts' | 'invoices' | 'vat' | 'expenses' | 'bank';
 
+const FINANCE_TOOL = TOOLS.find((t) => t.id === 'finance')!;
+
 const BillingView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<BillingTab>('contracts');
 
   return (
-    <div className="min-h-screen bg-white flex">
+    <ToolLayout currentTool={FINANCE_TOOL}>
+      <div className="h-full flex overflow-hidden">
       {/* Sidebar similar al CRM, pero para el módulo de facturación */}
       <aside className="w-64 bg-primary text-white flex flex-col shrink-0">
         <div className="p-4 flex flex-col items-center gap-2">
@@ -97,16 +101,6 @@ const BillingView: React.FC = () => {
                 Gestiona contratos, facturas, gastos y modelos de IVA para tus centros en España.
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <Link
-                to="/"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-brand-600 bg-white border border-brand-200 text-sm font-bold hover:bg-brand-100/60 hover:text-primary transition-colors"
-                title="Volver al selector de herramientas"
-              >
-                <Home size={18} />
-                <span>Cambiar de herramienta</span>
-              </Link>
-            </div>
           </div>
         </section>
 
@@ -136,6 +130,7 @@ const BillingView: React.FC = () => {
         </section>
       </main>
     </div>
+    </ToolLayout>
   );
 };
 

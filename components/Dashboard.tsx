@@ -1,246 +1,406 @@
-import React, { useMemo } from 'react';
-import * as XLSX from 'xlsx';
-import { Phase, CommercialStatus, Task } from '../types';
-import { PHASE_COLORS, STATUS_COLORS, COLORS, PHASE_CHART_COLORS } from '../constants';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
-import { TrendingUp, Users, CheckCircle, FileText, ChevronRight, Calendar, Clock, Download } from 'lucide-react';
-import { useCRM } from '../context/CRMContext';
+import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  PieChart,
+  Pie,
+  CartesianGrid,
+} from 'recharts';
+import {
+  Users,
+  UserPlus,
+  Briefcase,
+  TrendingUp,
+  CheckCircle,
+  Percent,
+  FolderOpen,
+  Calendar,
+  ChevronRight,
+} from 'lucide-react';
+import {
+  getCrmDashboardMetrics,
+  getDateRange,
+  type DateRangeKey,
+  type CrmDashboardMetrics,
+} from '../services/crm/dashboard';
+import type { ClientType } from '../types';
+import { COLORS } from '../constants';
+
+const DATE_RANGE_OPTIONS: { key: DateRangeKey; label: string }[] = [
+  { key: 'last30', label: 'Last 30 days' },
+  { key: 'last90', label: 'Last 90 days' },
+  { key: 'ytd', label: 'YTD' },
+];
+
+const CLIENT_TYPES: { value: ClientType; label: string }[] = [
+  { value: 'school', label: 'School' },
+  { value: 'company', label: 'Company' },
+  { value: 'partner', label: 'Partner' },
+  { value: 'lead', label: 'Lead' },
+];
+
+const DEAL_STAGE_COLORS: Record<string, string> = {
+  new: COLORS.brand[100],
+  qualified: COLORS.brand[300],
+  proposal_sent: COLORS.brand[400],
+  negotiation: '#f59e0b',
+  won: '#22c55e',
+  lost: '#ef4444',
+};
 
 const Dashboard: React.FC = () => {
-  const { schools, setSelectedSchoolId, navigateToView } = useCRM();
+  const navigate = useNavigate();
+  const [dateRangeKey, setDateRangeKey] = useState<DateRangeKey>('last30');
+  const [clientType, setClientType] = useState<ClientType | ''>('');
 
-  const exportPipeline = () => {
-    const rows = schools.map((s) => ({
-      Nombre: s.name,
-      Ciudad: s.city,
-      Región: s.region,
-      Email: s.email,
-      Contacto: s.contactPerson,
-      Fase: s.phase,
-      Estado: s.status,
-    }));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Pipeline');
-    XLSX.writeFile(wb, `pipeline-finomik-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  const dateRange = useMemo(
+    () => getDateRange(dateRangeKey),
+    [dateRangeKey]
+  );
+
+  const { data: metrics = null, isLoading } = useQuery({
+    queryKey: ['crm-dashboard', dateRange, clientType || undefined],
+    queryFn: () => getCrmDashboardMetrics(dateRange, clientType || undefined),
+  });
+
+  const m: CrmDashboardMetrics = metrics ?? {
+    totalClients: 0,
+    newClientsInRange: 0,
+    openDealsCount: 0,
+    pipelineValue: 0,
+    wonDealsInRange: 0,
+    conversionRate: null,
+    activeProjectsCount: 0,
+    tasksDueSoonCount: 0,
+    dealsByStage: [],
+    pipelineValueByMonth: [],
+    newClientsByMonth: [],
+    projectsByStatus: [],
+    latestUpdatedClients: [],
+    dealsClosingSoon: [],
+    staleDeals: [],
   };
 
-  const total = schools.length;
-  const signedCount = schools.filter(s => s.phase === Phase.SIGNED).length;
-  const negotiationCount = schools.filter(s => s.phase === Phase.NEGOTIATION).length;
-  const freeCount = schools.filter(s => s.status === CommercialStatus.FREE).length;
-  const pctSigned = total > 0 ? Math.round((signedCount / total) * 100) : 0;
-  const pctNegotiation = total > 0 ? Math.round((negotiationCount / total) * 100) : 0;
-  const pctFree = total > 0 ? Math.round((freeCount / total) * 100) : 0;
-
-  const phaseStats = Object.values(Phase).map(p => ({
-    name: p,
-    value: schools.filter(s => s.phase === p).length
-  }));
-
-  const statusStats = [
-    { name: CommercialStatus.FREE, value: schools.filter(s => s.status === CommercialStatus.FREE).length, color: COLORS.brand[300] },
-    { name: CommercialStatus.PAYING, value: schools.filter(s => s.status === CommercialStatus.PAYING).length, color: '#22c55e' }
-  ];
-
-  const upcomingEvents = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const events: { task: Task; schoolName: string }[] = [];
-    for (const school of schools) {
-      for (const task of school.tasks) {
-        if (task.completed) continue;
-        const taskDate = new Date(`${task.dueDate}T${task.dueTime || '23:59:59'}`);
-        if (taskDate >= today) {
-          events.push({ task, schoolName: school.name });
-        }
-      }
-    }
-    events.sort((a, b) => {
-      const dateA = new Date(`${a.task.dueDate}T${a.task.dueTime || '23:59:59'}`).getTime();
-      const dateB = new Date(`${b.task.dueDate}T${b.task.dueTime || '23:59:59'}`).getTime();
-      return dateA - dateB;
-    });
-    return events.slice(0, 8);
-  }, [schools]);
-
-  const formatEventDate = (dueDate: string, dueTime?: string) => {
-    const d = new Date(`${dueDate}T${dueTime || '12:00'}`);
-    const options: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short' };
-    const dateStr = d.toLocaleDateString('es-ES', options);
-    if (dueTime) {
-      const [h, m] = dueTime.split(':');
-      return { date: dateStr, time: `${h}:${m}` };
-    }
-    return { date: dateStr, time: null };
-  };
+  const formatCurrency = (n: number) =>
+    new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
+  const formatDate = (s: string) =>
+    new Date(s).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-primary">Resumen General</h2>
-          <p className="text-brand-500 font-body text-sm sm:text-base">Estado actual de tu pipeline de escuelas.</p>
+          <h2 className="text-xl sm:text-2xl font-title text-primary">CRM Dashboard</h2>
+          <p className="text-brand-500 font-body text-sm sm:text-base">
+            Overview of clients, pipeline, and activity.
+          </p>
         </div>
-        <button
-          type="button"
-          onClick={exportPipeline}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-bold bg-primary text-white hover:bg-brand-600 transition-all shrink-0"
-        >
-          <Download size={18} />
-          Exportar pipeline
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-brand-500 text-xs font-bold uppercase">Date range</span>
+          <div className="flex gap-1 p-1 bg-brand-100/50 rounded-full">
+            {DATE_RANGE_OPTIONS.map((opt) => (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => setDateRangeKey(opt.key)}
+                className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${
+                  dateRangeKey === opt.key
+                    ? 'bg-primary text-white'
+                    : 'text-brand-600 hover:bg-brand-100/50'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <span className="text-brand-500 text-xs font-bold uppercase ml-2">Type</span>
+          <select
+            value={clientType}
+            onChange={(e) => setClientType((e.target.value || '') as ClientType | '')}
+            className="rounded-xl border border-brand-200/60 bg-white px-3 py-2 text-sm font-body text-primary"
+          >
+            <option value="">All</option>
+            {CLIENT_TYPES.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <button
-          type="button"
-          onClick={() => navigateToView('table')}
-          className="bg-white p-6 rounded-xl border border-brand-200 shadow-sm text-left hover:border-brand-400 hover:shadow-md transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-brand-100 p-2 rounded-lg text-brand-600"><Users size={20} /></div>
-          </div>
-          <p className="text-brand-500 text-sm font-bold">Total Escuelas</p>
-          <p className="text-2xl font-extrabold text-primary">{total}</p>
-        </button>
+      {isLoading && (
+        <div className="flex justify-center py-8">
+          <p className="text-brand-500 font-body">Loading...</p>
+        </div>
+      )}
 
-        <button
-          type="button"
-          onClick={() => navigateToView('table', { phase: [Phase.SIGNED] })}
-          className="bg-white p-6 rounded-xl border border-brand-200 shadow-sm text-left hover:border-brand-400 hover:shadow-md transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-emerald-50 p-2 rounded-lg text-emerald-600"><CheckCircle size={20} /></div>
-            {total > 0 && <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{pctSigned}% del total</span>}
+      {!isLoading && (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
+            <button
+              type="button"
+              onClick={() => navigate('/crm/clients')}
+              className="bg-white p-4 rounded-2xl border border-brand-200/60 shadow-card text-left hover:shadow-md transition-all"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className="bg-brand-100 p-2 rounded-lg text-brand-600">
+                  <Users size={18} />
+                </div>
+              </div>
+              <p className="text-brand-500 text-xs font-bold">Total Clients</p>
+              <p className="text-lg font-extrabold text-primary">{m.totalClients}</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/crm/clients')}
+              className="bg-white p-4 rounded-2xl border border-brand-200/60 shadow-card text-left hover:shadow-md transition-all"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className="bg-emerald-50 p-2 rounded-lg text-emerald-600">
+                  <UserPlus size={18} />
+                </div>
+              </div>
+              <p className="text-brand-500 text-xs font-bold">New (range)</p>
+              <p className="text-lg font-extrabold text-primary">{m.newClientsInRange}</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/crm/deals')}
+              className="bg-white p-4 rounded-2xl border border-brand-200/60 shadow-card text-left hover:shadow-md transition-all"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className="bg-amber-50 p-2 rounded-lg text-amber-600">
+                  <Briefcase size={18} />
+                </div>
+              </div>
+              <p className="text-brand-500 text-xs font-bold">Open Deals</p>
+              <p className="text-lg font-extrabold text-primary">{m.openDealsCount}</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/crm/deals')}
+              className="bg-white p-4 rounded-2xl border border-brand-200/60 shadow-card text-left hover:shadow-md transition-all"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className="bg-brand-100 p-2 rounded-lg text-brand-600">
+                  <TrendingUp size={18} />
+                </div>
+              </div>
+              <p className="text-brand-500 text-xs font-bold">Pipeline Value</p>
+              <p className="text-lg font-extrabold text-primary">{formatCurrency(m.pipelineValue)}</p>
+            </button>
+            <div className="bg-white p-4 rounded-2xl border border-brand-200/60 shadow-card text-left">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="bg-green-50 p-2 rounded-lg text-green-600">
+                  <CheckCircle size={18} />
+                </div>
+              </div>
+              <p className="text-brand-500 text-xs font-bold">Won (range)</p>
+              <p className="text-lg font-extrabold text-primary">{m.wonDealsInRange}</p>
+            </div>
+            <div className="bg-white p-4 rounded-2xl border border-brand-200/60 shadow-card text-left">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="bg-brand-100 p-2 rounded-lg text-brand-600">
+                  <Percent size={18} />
+                </div>
+              </div>
+              <p className="text-brand-500 text-xs font-bold">Conversion %</p>
+              <p className="text-lg font-extrabold text-primary">
+                {m.conversionRate != null ? `${m.conversionRate}%` : '–'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/crm/projects')}
+              className="bg-white p-4 rounded-2xl border border-brand-200/60 shadow-card text-left hover:shadow-md transition-all"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className="bg-purple-50 p-2 rounded-lg text-purple-600">
+                  <FolderOpen size={18} />
+                </div>
+              </div>
+              <p className="text-brand-500 text-xs font-bold">Active Projects</p>
+              <p className="text-lg font-extrabold text-primary">{m.activeProjectsCount}</p>
+            </button>
+            <div className="bg-white p-4 rounded-2xl border border-brand-200/60 shadow-card text-left">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="bg-brand-100 p-2 rounded-lg text-brand-600">
+                  <Calendar size={18} />
+                </div>
+              </div>
+              <p className="text-brand-500 text-xs font-bold">Tasks Due Soon</p>
+              <p className="text-lg font-extrabold text-primary">{m.tasksDueSoonCount}</p>
+            </div>
           </div>
-          <p className="text-brand-500 text-sm font-bold">Firmadas</p>
-          <p className="text-2xl font-extrabold text-primary">{signedCount}</p>
-        </button>
 
-        <button
-          type="button"
-          onClick={() => navigateToView('table', { phase: [Phase.NEGOTIATION] })}
-          className="bg-white p-6 rounded-xl border border-brand-200 shadow-sm text-left hover:border-brand-400 hover:shadow-md transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-orange-50 p-2 rounded-lg text-orange-600"><TrendingUp size={20} /></div>
-            {total > 0 && <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">{pctNegotiation}% del total</span>}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white p-4 sm:p-6 rounded-2xl border border-brand-200/60 shadow-card min-w-0">
+              <h3 className="font-subtitle text-primary mb-4">Deals by Stage</h3>
+              {m.dealsByStage.length === 0 ? (
+                <p className="py-8 text-center text-brand-500 text-sm">No deal data in this period.</p>
+              ) : (
+                <div className="h-[240px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={m.dealsByStage} layout="vertical" margin={{ left: 80 }}>
+                      <XAxis type="number" fontSize={12} />
+                      <YAxis type="category" dataKey="stage" width={80} fontSize={11} />
+                      <Tooltip />
+                      <Bar dataKey="count" name="Count" radius={[0, 4, 4, 0]}>
+                        {m.dealsByStage.map((entry, i) => (
+                          <Cell key={i} fill={DEAL_STAGE_COLORS[entry.stage] ?? COLORS.brand[300]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+            <div className="bg-white p-4 sm:p-6 rounded-2xl border border-brand-200/60 shadow-card min-w-0">
+              <h3 className="font-subtitle text-primary mb-4">Projects by Status</h3>
+              {m.projectsByStatus.length === 0 ? (
+                <p className="py-8 text-center text-brand-500 text-sm">No project data.</p>
+              ) : (
+                <div className="h-[240px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={m.projectsByStatus}>
+                      <XAxis dataKey="status" fontSize={11} />
+                      <YAxis fontSize={12} />
+                      <Tooltip />
+                      <Bar dataKey="count" name="Count" fill={COLORS.brand[400]} radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
           </div>
-          <p className="text-brand-500 text-sm font-bold">Negociación Activa</p>
-          <p className="text-2xl font-extrabold text-primary">{negotiationCount}</p>
-        </button>
 
-        <button
-          type="button"
-          onClick={() => navigateToView('table', { status: [CommercialStatus.FREE] })}
-          className="bg-white p-6 rounded-xl border border-brand-200 shadow-sm text-left hover:border-brand-400 hover:shadow-md transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-brand-100 p-2 rounded-lg text-brand-600"><FileText size={20} /></div>
-            {total > 0 && <span className="text-xs font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full">{pctFree}% del total</span>}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white p-4 sm:p-6 rounded-2xl border border-brand-200/60 shadow-card min-w-0">
+              <h3 className="font-subtitle text-primary mb-4">Pipeline Value by Month</h3>
+              {m.pipelineValueByMonth.length === 0 ? (
+                <p className="py-8 text-center text-brand-500 text-sm">No data in this period.</p>
+              ) : (
+                <div className="h-[220px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={m.pipelineValueByMonth}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="month" fontSize={11} tickFormatter={(v) => v.slice(0, 7)} />
+                      <YAxis fontSize={11} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                      <Tooltip formatter={(v: number) => [formatCurrency(v), 'Value']} labelFormatter={(l) => l?.slice(0, 7)} />
+                      <Line type="monotone" dataKey="value" stroke={COLORS.brand[500]} strokeWidth={2} dot={{ r: 3 }} name="Value" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+            <div className="bg-white p-4 sm:p-6 rounded-2xl border border-brand-200/60 shadow-card min-w-0">
+              <h3 className="font-subtitle text-primary mb-4">New Clients by Month</h3>
+              {m.newClientsByMonth.length === 0 ? (
+                <p className="py-8 text-center text-brand-500 text-sm">No data in this period.</p>
+              ) : (
+                <div className="h-[220px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={m.newClientsByMonth}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="month" fontSize={11} tickFormatter={(v) => v.slice(0, 7)} />
+                      <YAxis fontSize={11} />
+                      <Tooltip labelFormatter={(l) => l?.slice(0, 7)} />
+                      <Line type="monotone" dataKey="count" stroke={COLORS.brand[400]} strokeWidth={2} dot={{ r: 3 }} name="New clients" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
           </div>
-          <p className="text-brand-500 text-sm font-bold">Periodo Gratuito</p>
-          <p className="text-2xl font-extrabold text-primary">{freeCount}</p>
-        </button>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-        <div className="lg:col-span-2 bg-white p-4 sm:p-6 rounded-xl border border-brand-200 shadow-sm min-w-0">
-          <h3 className="font-bold text-primary mb-4 sm:mb-6 flex items-center gap-2 text-sm sm:text-base">Distribución por Fases</h3>
-          <div className="h-[240px] sm:h-[300px] w-full min-w-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={phaseStats}>
-                <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis hide />
-                <Tooltip
-                  cursor={{ fill: '#f8fafc' }}
-                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                />
-                <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                  {phaseStats.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={PHASE_CHART_COLORS[entry.name as Phase]} />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="bg-white p-4 sm:p-6 rounded-2xl border border-brand-200/60 shadow-card">
+              <h3 className="font-subtitle text-primary mb-4">Latest Updated Clients</h3>
+              {m.latestUpdatedClients.length === 0 ? (
+                <p className="py-6 text-center text-brand-500 text-sm">No clients yet.</p>
+              ) : (
+                <ul className="divide-y divide-brand-100">
+                  {m.latestUpdatedClients.map((c) => (
+                    <li key={c.id} className="py-2 flex items-center justify-between gap-2 hover:bg-brand-100/30 rounded-lg -mx-2 px-2">
+                      <span className="font-medium text-primary truncate">{c.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/crm/clients/${c.id}`)}
+                        className="shrink-0 p-1.5 text-brand-500 hover:text-primary hover:bg-brand-100/50 rounded-xl transition-colors"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                    </li>
                   ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl border border-brand-200 shadow-sm flex flex-col">
-          <h3 className="font-bold text-primary mb-6">Estado Comercial</h3>
-          <div className="flex-1 min-h-[250px] relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={statusStats}
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {statusStats.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                </ul>
+              )}
+            </div>
+            <div className="bg-white p-4 sm:p-6 rounded-2xl border border-brand-200/60 shadow-card">
+              <h3 className="font-subtitle text-primary mb-4">Deals Closing Soon (30 days)</h3>
+              {m.dealsClosingSoon.length === 0 ? (
+                <p className="py-6 text-center text-brand-500 text-sm">No deals closing in the next 30 days.</p>
+              ) : (
+                <ul className="divide-y divide-brand-100">
+                  {m.dealsClosingSoon.map((d) => (
+                    <li key={d.id} className="py-2 flex items-center justify-between gap-2 hover:bg-brand-100/30 rounded-lg -mx-2 px-2">
+                      <div className="min-w-0">
+                        <p className="font-medium text-primary truncate">{d.title}</p>
+                        <p className="text-xs text-brand-500">
+                          {d.clientName ?? d.clientId} · {formatDate(d.expectedCloseDate)}
+                          {d.valueEstimated != null ? ` · ${formatCurrency(d.valueEstimated)}` : ''}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/crm/deals')}
+                        className="shrink-0 p-1.5 text-brand-500 hover:text-primary hover:bg-brand-100/50 rounded-xl transition-colors"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                    </li>
                   ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+                </ul>
+              )}
+            </div>
+            <div className="bg-white p-4 sm:p-6 rounded-2xl border border-brand-200/60 shadow-card">
+              <h3 className="font-subtitle text-primary mb-4">Stale Deals (no update 14+ days)</h3>
+              {m.staleDeals.length === 0 ? (
+                <p className="py-6 text-center text-brand-500 text-sm">No stale deals.</p>
+              ) : (
+                <ul className="divide-y divide-brand-100">
+                  {m.staleDeals.map((d) => (
+                    <li key={d.id} className="py-2 flex items-center justify-between gap-2 hover:bg-brand-100/30 rounded-lg -mx-2 px-2">
+                      <div className="min-w-0">
+                        <p className="font-medium text-primary truncate">{d.title}</p>
+                        <p className="text-xs text-brand-500">
+                          {d.clientName ?? d.clientId} · {formatDate(d.updatedAt)} · {d.stage}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/crm/deals')}
+                        className="shrink-0 p-1.5 text-brand-500 hover:text-primary hover:bg-brand-100/50 rounded-xl transition-colors"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
-          <div className="flex items-center justify-center gap-6 text-xs font-bold">
-            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-brand-400"></span> Gratuito</div>
-            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-green-500"></span> Pagando</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white p-6 rounded-xl border border-brand-200 shadow-sm">
-        <h3 className="font-bold text-primary mb-4 flex items-center gap-2">
-          <Calendar size={18} /> Siguientes eventos del calendario
-        </h3>
-        <div className="overflow-hidden">
-          {upcomingEvents.length === 0 ? (
-            <p className="py-8 text-center text-brand-500 font-body">No hay eventos próximos. Crea tareas o reuniones en los centros para verlas aquí.</p>
-          ) : (
-            <ul className="divide-y divide-brand-100">
-              {upcomingEvents.map(({ task, schoolName }) => {
-                const { date, time } = formatEventDate(task.dueDate, task.dueTime);
-                return (
-                  <li key={task.id} className="group py-4 flex items-center gap-4 hover:bg-brand-100/20 transition-colors -mx-2 px-2 rounded-lg">
-                    <div className="shrink-0 w-14 text-center rounded-xl bg-primary text-white py-2 shadow-sm">
-                      <span className="text-[9px] font-bold uppercase block opacity-90">
-                        {date.split(' ')[0].replace(/\.$/, '')}
-                      </span>
-                      <span className="text-lg font-extrabold leading-none">
-                        {new Date(task.dueDate + 'T12:00').getDate()}
-                      </span>
-                      <span className="text-[9px] font-body opacity-80 block">
-                        {date.split(' ').slice(-1)[0]?.replace(/\.$/, '') || ''}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-primary truncate">{task.title}</p>
-                      <p className="text-brand-500 text-sm font-body truncate flex items-center gap-1">
-                        {time != null ? (
-                          <><Clock size={12} /> {time} · </>
-                        ) : null}
-                        {schoolName}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setSelectedSchoolId(task.schoolId)}
-                      className="shrink-0 p-2 text-brand-500 hover:text-primary hover:bg-brand-100/50 rounded-lg transition-colors"
-                      title="Ver centro"
-                    >
-                      <ChevronRight size={18} />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 };

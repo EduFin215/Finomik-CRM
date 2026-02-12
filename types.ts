@@ -88,190 +88,190 @@ export interface ReminderSettings {
   remindForMeetings: boolean;
 }
 
-// --- Contabilidad España (ERP) ---
+// --- CRM (clients, deals, projects) ---
+export type ClientType = 'school' | 'company' | 'partner' | 'lead';
+export type ClientStage = 'new' | 'contacted' | 'meeting' | 'proposal' | 'negotiation' | 'won' | 'lost';
+export type ClientStatus = 'active' | 'archived';
 
-export type EsFrequency = 'Mensual' | 'Trimestral' | 'Anual';
-
-export type EsInvoiceStatus = 'Borrador' | 'Emitida' | 'Pagada' | 'Vencida' | 'Cancelada';
-
-export type EsPaymentMethod = 'Transferencia' | 'Tarjeta' | 'SEPA' | 'Otro';
-
-export type EsPaymentStatus = 'Pendiente' | 'Confirmado' | 'Devuelto';
-
-export interface EsTaxRate {
-  id: string;
-  code: string;
-  name: string;
-  percentage: number;
-  isExempt: boolean;
-  isDefault: boolean;
-}
-
-export interface EsInvoiceSeries {
-  id: string;
-  code: string;
-  description?: string | null;
-  year: number;
-  isRectifying: boolean;
-  currentNumber: number;
-}
-
-export interface EsProduct {
+export interface Client {
   id: string;
   name: string;
-  description: string;
-  incomeAccount: string;
-  taxRateId?: string | null;
-  isActive: boolean;
-}
-
-export interface EsContract {
-  id: string;
-  schoolId: string;
-  externalRef?: string | null;
-  startDate: string;
-  endDate?: string | null;
-  frequency: EsFrequency;
-  status: 'Activo' | 'Pendiente' | 'Cancelado' | 'Finalizado';
-  defaultTaxRateId?: string | null;
-  paymentTerms: string;
-  schoolName?: string;
-}
-
-export interface EsInvoiceLine {
-  id: string;
-  invoiceId: string;
-  productId?: string | null;
-  description: string;
-  quantity: number;
-  unitPrice: number;
-  taxRateId?: string | null;
-  baseAmount: number;
-  taxAmount: number;
-  totalAmount: number;
-  position: number;
-}
-
-export interface EsInvoice {
-  id: string;
-  schoolId: string;
-  contractId?: string | null;
-  seriesId: string;
-  invoiceNumber: number;
-  fullNumber: string;
-  issueDate: string;
-  operationDate: string;
-  dueDate?: string | null;
-  currency: string;
-  totalBase: number;
-  totalTax: number;
-  totalAmount: number;
-  status: EsInvoiceStatus;
-  schoolName?: string;
-}
-
-export interface EsPayment {
-  id: string;
-  invoiceId: string;
-  amount: number;
-  paymentDate: string;
-  method: EsPaymentMethod;
-  status: EsPaymentStatus;
-}
-
-export interface EsVatIssuedRow {
-  invoiceId: string;
-  fullNumber: string;
-  issueDate: string;
-  operationDate: string;
-  schoolId: string;
-  schoolName: string;
-  schoolTaxId: string | null;
-  taxRateId: string | null;
-  taxCode: string | null;
-  taxPercentage: number;
-  baseAmount: number;
-  taxAmount: number;
-}
-
-// Proveedores y compras
-export type EsPurchaseStatus = 'Pendiente' | 'Parcialmente pagada' | 'Pagada' | 'Cancelada';
-
-export interface EsSupplier {
-  id: string;
-  name: string;
-  taxId: string | null;
-  country: string;
+  type: ClientType;
+  stage: ClientStage;
+  status: ClientStatus;
+  website?: string | null;
+  location?: string | null;
   city: string;
-  address: string;
-  postalCode: string;
-  email: string;
+  region: string;
   phone: string;
-  payTerms: string;
-  accountCode: string;
+  email: string;
+  contactPerson: string;
+  role: string;
+  notes: string;
+  activities: Activity[];
+  tasks: Task[];
+  milestones: string[];
+  assignedToId?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export interface EsPurchaseInvoice {
+export type ContactImportance = 'key' | 'normal';
+
+export interface ClientContact {
   id: string;
-  supplierId: string;
-  supplierName?: string;
-  invoiceNumber: string;
-  issueDate: string;
-  receptionDate?: string | null;
+  clientId: string;
+  fullName: string;
+  roleTitle?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  importance: ContactImportance;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type DealStage = 'new' | 'qualified' | 'proposal_sent' | 'negotiation' | 'won' | 'lost';
+
+export interface Deal {
+  id: string;
+  clientId: string;
+  title: string;
+  stage: DealStage;
+  valueEstimated?: number | null;
+  currency: string;
+  probability?: number | null;
+  expectedCloseDate?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  clientName?: string;
+}
+
+export type ProjectStatus = 'planned' | 'active' | 'blocked' | 'done' | 'archived';
+
+export interface Project {
+  id: string;
+  clientId: string;
+  title: string;
+  status: ProjectStatus;
+  startDate?: string | null;
   dueDate?: string | null;
-  currency: string;
-  totalBase: number;
-  totalTax: number;
-  totalAmount: number;
-  status: EsPurchaseStatus;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  clientName?: string;
 }
 
-export interface EsPurchaseLine {
+// --- Work tasks (Tasks tool; distinct from school-scoped Task) ---
+export type WorkTaskStatus = 'open' | 'in_progress' | 'done' | 'archived';
+export type WorkTaskPriority = 'low' | 'medium' | 'high';
+export type WorkTaskLinkEntityType = 'client' | 'deal' | 'project' | 'internal';
+
+export interface WorkTaskLink {
   id: string;
-  purchaseInvoiceId: string;
-  description: string;
-  expenseAccount: string;
-  quantity: number;
-  unitPrice: number;
-  taxRateId?: string | null;
-  baseAmount: number;
-  taxAmount: number;
-  totalAmount: number;
-  position: number;
+  taskId: string;
+  entityType: WorkTaskLinkEntityType;
+  entityId: string | null;
+  createdAt: string;
 }
 
-export interface EsPurchasePayment {
+export interface WorkTask {
   id: string;
-  purchaseInvoiceId: string;
+  title: string;
+  description: string | null;
+  status: WorkTaskStatus;
+  priority: WorkTaskPriority;
+  dueAt: string | null;
+  remindAt: string | null;
+  assigneeUserId: string | null;
+  createdByUserId: string | null;
+  completedAt: string | null;
+  reminderNotifiedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  links?: WorkTaskLink[];
+}
+
+export interface WorkTaskNotification {
+  id: string;
+  userId: string;
+  workTaskId: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+// --- Finance (simple: contracts, invoices, expenses, settings) ---
+
+export type FinanceContractStatus = 'active' | 'pending' | 'cancelled' | 'ended';
+export type FinanceContractFrequency = 'monthly' | 'quarterly' | 'yearly';
+
+export interface FinanceContract {
+  id: string;
+  clientId: string | null;
+  title: string;
+  startDate: string;
+  endDate: string | null;
+  frequency: FinanceContractFrequency;
   amount: number;
-  paymentDate: string;
-  method: 'Transferencia' | 'Tarjeta' | 'SEPA' | 'Efectivo' | 'Otro';
-  status: EsPaymentStatus;
-}
-
-// Banco
-export interface EsBankAccount {
-  id: string;
-  name: string;
-  iban?: string | null;
-  entity: string;
-  accountCode: string;
   currency: string;
+  status: FinanceContractStatus;
+  externalSource?: string | null;
+  externalId?: string | null;
+  syncedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  clientName?: string;
 }
 
-export interface EsBankMovement {
+export type FinanceInvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+
+export interface FinanceInvoice {
   id: string;
-  bankAccountId: string;
-  operationDate: string;
-  valueDate?: string | null;
-  concept: string;
+  contractId: string | null;
+  title: string;
   amount: number;
-  balanceAfter?: number | null;
-  reference?: string | null;
-  matched: boolean;
+  currency: string;
+  issueDate: string;
+  dueDate: string | null;
+  status: FinanceInvoiceStatus;
+  externalSource?: string | null;
+  externalId?: string | null;
+  syncedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  contractTitle?: string;
 }
 
-// Gastos simples neutros (para exportar a cualquier ERP)
+export type FinanceExpenseStatus = 'pending' | 'paid' | 'cancelled';
+
+export interface FinanceExpense {
+  id: string;
+  title: string;
+  vendor: string;
+  category: string;
+  amount: number;
+  currency: string;
+  date: string;
+  dueDate: string | null;
+  status: FinanceExpenseStatus;
+  isRecurring: boolean;
+  recurrenceRule: string | null;
+  externalSource?: string | null;
+  externalId?: string | null;
+  syncedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FinanceSettings {
+  id: string;
+  startingCash: number | null;
+  defaultCurrency: string;
+  updatedAt: string;
+}
+
+/** Legacy expense type (old expenses table). Kept for services/expenses.ts. New Finance uses FinanceExpense. */
 export interface Expense {
   id: string;
   documentNumber?: string | null;
@@ -295,6 +295,79 @@ export interface Expense {
   createdAt: string;
   createdBy?: string | null;
   updatedAt: string;
+}
+
+// --- Resources (módulo central de enlaces) ---
+
+export type ResourceSource =
+  | 'google_drive'
+  | 'canva'
+  | 'figma'
+  | 'notion'
+  | 'loom'
+  | 'other';
+
+export type ResourceType =
+  | 'logo'
+  | 'contract'
+  | 'deck'
+  | 'template'
+  | 'report'
+  | 'image'
+  | 'video'
+  | 'spreadsheet'
+  | 'doc'
+  | 'other';
+
+export type ResourceStatus = 'draft' | 'final' | 'archived';
+
+export type ResourceEntityType = 'client' | 'deal' | 'project' | 'task' | 'internal';
+
+export interface Resource {
+  id: string;
+  title: string;
+  normalizedTitle?: string | null;
+  url: string;
+  source: ResourceSource;
+  type: ResourceType;
+  status: ResourceStatus;
+  version?: string | null;
+  ownerUserId?: string | null;
+  description?: string | null;
+  aiSummary?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ResourceLink {
+  id: string;
+  resourceId: string;
+  entityType: ResourceEntityType;
+  entityId: string | null;
+  isPrimary: boolean;
+  createdAt: string;
+}
+
+export interface ResourceAlias {
+  id: string;
+  resourceId: string;
+  alias: string;
+  createdAt: string;
+}
+
+/** Recurso con datos de links denormalizados (para listados) */
+export interface ResourceWithLinks extends Resource {
+  links?: ResourceLinkInfo[];
+  linkedTo?: string; // resumen textual: "Cliente X, Deal Y"
+  isPrimaryForEntity?: boolean;
+}
+
+export interface ResourceLinkInfo {
+  id: string;
+  entityType: ResourceEntityType;
+  entityId: string | null;
+  entityName?: string | null;
+  isPrimary: boolean;
 }
 
 // Documentos de empresa

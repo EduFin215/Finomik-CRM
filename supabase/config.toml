@@ -1,0 +1,7 @@
+# Skip gateway JWT verification; the function validates the user token with auth.getUser(token).
+# Required when the project uses new JWT signing (ES256) and the gateway rejects valid user JWTs.
+[functions.agent]
+verify_jwt = false
+
+[functions.create-task]
+verify_jwt = false

@@ -4,6 +4,7 @@ export default {
     "./index.html",
     "./*.{js,ts,jsx,tsx}",
     "./components/**/*.{js,ts,jsx,tsx}",
+    "./modules/**/*.{js,ts,jsx,tsx}",
     "./services/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
@@ -27,6 +28,18 @@ export default {
         extrabold: '800',
         bold: '700',
         normal: '400',
+      },
+      borderRadius: {
+        'card': '12px',
+        'card-lg': '16px',
+        'card-xl': '20px',
+      },
+      boxShadow: {
+        'card': '0 1px 3px 0 rgb(11 48 100 / 0.06), 0 1px 2px -1px rgb(11 48 100 / 0.06)',
+        'dropdown': '0 10px 15px -3px rgb(11 48 100 / 0.08), 0 4px 6px -4px rgb(11 48 100 / 0.06)',
+      },
+      backdropBlur: {
+        'glass': '12px',
       },
     },
   },
