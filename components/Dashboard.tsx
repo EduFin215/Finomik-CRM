@@ -10,21 +10,15 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  Cell,
-  PieChart,
-  Pie,
   CartesianGrid,
+  Cell,
 } from 'recharts';
 import {
   Users,
-  UserPlus,
   Briefcase,
   TrendingUp,
-  CheckCircle,
-  Percent,
-  FolderOpen,
-  Calendar,
-  ChevronRight,
+  CheckSquare,
+  Target
 } from 'lucide-react';
 import {
   getCrmDashboardMetrics,
@@ -32,36 +26,34 @@ import {
   type DateRangeKey,
   type CrmDashboardMetrics,
 } from '../services/crm/dashboard';
-import type { ClientType } from '../types';
+import { Phase } from '../types';
 import { COLORS } from '../constants';
-import { Select } from '../modules/tasks/Select';
+import { KpiCard } from '../modules/reporting/components/KpiCard';
+import { ChartCard } from '../modules/reporting/components/ChartCard';
+import { ActionableList } from '../modules/reporting/components/ActionableList';
 
 const DATE_RANGE_OPTIONS: { key: DateRangeKey; label: string }[] = [
-  { key: 'last30', label: 'Last 30 days' },
-  { key: 'last90', label: 'Last 90 days' },
-  { key: 'ytd', label: 'YTD' },
-];
-
-const CLIENT_TYPES: { value: ClientType; label: string }[] = [
-  { value: 'school', label: 'School' },
-  { value: 'company', label: 'Company' },
-  { value: 'partner', label: 'Partner' },
-  { value: 'lead', label: 'Lead' },
+  { key: 'last30', label: 'Últimos 30 días' },
+  { key: 'last90', label: 'Últimos 90 días' },
+  { key: 'ytd', label: 'Año actual' },
 ];
 
 const DEAL_STAGE_COLORS: Record<string, string> = {
-  new: COLORS.brand[100],
-  qualified: COLORS.brand[300],
-  proposal_sent: COLORS.brand[400],
-  negotiation: '#f59e0b',
-  won: '#22c55e',
-  lost: '#ef4444',
+  // Sales
+  [Phase.INTERESTED]: COLORS.brand[100],
+  [Phase.MEETING]: COLORS.brand[300],
+  [Phase.PROPOSAL]: COLORS.brand[400],
+  [Phase.NEGOTIATION]: '#f59e0b',
+
+  // Onboarding
+  [Phase.ONBOARDING_SETUP]: COLORS.secondary,
+  [Phase.ONBOARDING_TRAINING]: COLORS.accent,
+  [Phase.ONBOARDING_DONE]: '#22c55e',
 };
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [dateRangeKey, setDateRangeKey] = useState<DateRangeKey>('last30');
-  const [clientType, setClientType] = useState<ClientType | ''>('');
 
   const dateRange = useMemo(
     () => getDateRange(dateRangeKey),
@@ -69,333 +61,168 @@ const Dashboard: React.FC = () => {
   );
 
   const { data: metrics = null, isLoading } = useQuery({
-    queryKey: ['crm-dashboard', dateRange, clientType || undefined],
-    queryFn: () => getCrmDashboardMetrics(dateRange, clientType || undefined),
+    queryKey: ['crm-dashboard', dateRange],
+    queryFn: () => getCrmDashboardMetrics(dateRange),
   });
 
   const m: CrmDashboardMetrics = metrics ?? {
-    totalClients: 0,
-    newClientsInRange: 0,
-    openDealsCount: 0,
+    totalSchools: 0,
+    newLeadsInRange: 0,
+    openOpportunities: 0,
     pipelineValue: 0,
-    wonDealsInRange: 0,
-    conversionRate: null,
-    activeProjectsCount: 0,
+    wonInRange: 0,
+    activeOnboarding: 0,
+    activeClients: 0,
     tasksDueSoonCount: 0,
-    dealsByStage: [],
+    pipelineByPhase: [],
     pipelineValueByMonth: [],
-    newClientsByMonth: [],
-    projectsByStatus: [],
-    latestUpdatedClients: [],
-    dealsClosingSoon: [],
-    staleDeals: [],
+    newLeadsByMonth: [],
+    opportunitiesClosingSoon: [],
+    staleOpportunities: [],
   };
 
   const formatCurrency = (n: number) =>
     new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
-  const formatDate = (s: string) =>
-    new Date(s).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-brand-muted">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+        <p className="text-sm font-medium">Cargando Dashboard...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 sm:space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-title text-primary">CRM Dashboard</h2>
-          <p className="text-brand-500 font-body text-sm sm:text-base">
-            Overview of leads, pipeline, and activity.
+          <h2 className="text-2xl font-extrabold text-primary tracking-tight">CRM Dashboard</h2>
+          <p className="text-brand-muted text-sm mt-1">
+            Resumen de actividad comercial y onboarding.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-brand-500 text-xs font-bold uppercase">Date range</span>
-          <div className="flex gap-1 p-1 bg-brand-100/50 rounded-full">
+          <div className="flex bg-white border border-brand-very-soft/60 rounded-lg p-1 shadow-sm">
             {DATE_RANGE_OPTIONS.map((opt) => (
               <button
                 key={opt.key}
                 type="button"
                 onClick={() => setDateRangeKey(opt.key)}
-                className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${
-                  dateRangeKey === opt.key
-                    ? 'bg-primary text-white'
-                    : 'text-brand-600 hover:bg-brand-100/50'
-                }`}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${dateRangeKey === opt.key
+                  ? 'bg-brand-50 text-brand-600 shadow-sm'
+                  : 'text-brand-400 hover:text-primary hover:bg-gray-50'
+                  }`}
               >
                 {opt.label}
               </button>
             ))}
           </div>
-          <Select
-            value={clientType}
-            onChange={(v) => setClientType((v || '') as ClientType | '')}
-            placeholder="All"
-            options={CLIENT_TYPES.map((o) => ({ value: o.value, label: o.label }))}
-            className="min-w-[120px]"
-          />
         </div>
       </div>
 
-      {isLoading && (
-        <div className="flex justify-center py-8">
-          <p className="text-brand-500 font-body">Loading...</p>
+      {/* 4 Key KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <KpiCard
+          value={formatCurrency(m.pipelineValue)}
+          label="Valor Pipeline"
+          icon={TrendingUp}
+          onClick={() => navigate('/crm/pipeline')}
+        />
+        <KpiCard
+          value={m.openOpportunities}
+          label="Oportunidades Abiertas"
+          icon={Briefcase}
+          onClick={() => navigate('/crm/pipeline')}
+        />
+        <KpiCard
+          value={m.activeOnboarding}
+          label="En Onboarding"
+          icon={Target}
+          subtext="Proyectos activos"
+          onClick={() => navigate('/crm/onboarding')}
+        />
+        <KpiCard
+          value={m.tasksDueSoonCount}
+          label="Tareas Pendientes"
+          icon={CheckSquare}
+          trendColor="red"
+          onClick={() => navigate('/tasks/all')}
+        />
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <ChartCard title="Evolución Pipeline (Forecast)">
+            {m.pipelineValueByMonth.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-brand-muted text-sm">Sin datos</div>
+            ) : (
+              <div className="h-[260px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={m.pipelineValueByMonth}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="month" fontSize={11} tickFormatter={(v) => v.slice(0, 7)} tick={{ fill: '#94a3b8' }} axisLine={false} tickLine={false} dy={10} />
+                    <YAxis fontSize={11} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      formatter={(v: number) => formatCurrency(v)}
+                      labelFormatter={(l) => l?.slice(0, 7)}
+                    />
+                    <Line type="monotone" dataKey="value" stroke={COLORS.brand[500]} strokeWidth={3} dot={{ r: 4, strokeWidth: 0, fill: COLORS.brand[500] }} activeDot={{ r: 6 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </ChartCard>
         </div>
-      )}
 
-      {!isLoading && (
-        <>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
-            <button
-              type="button"
-              onClick={() => navigate('/crm/leads')}
-              className="bg-white p-4 rounded-2xl border border-brand-200/60 shadow-card text-left hover:shadow-md transition-all"
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <div className="bg-brand-100 p-2 rounded-lg text-brand-600">
-                  <Users size={18} />
-                </div>
-              </div>
-              <p className="text-brand-500 text-xs font-bold">Total Leads</p>
-              <p className="text-lg font-extrabold text-primary">{m.totalClients}</p>
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/crm/leads')}
-              className="bg-white p-4 rounded-2xl border border-brand-200/60 shadow-card text-left hover:shadow-md transition-all"
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <div className="bg-emerald-50 p-2 rounded-lg text-emerald-600">
-                  <UserPlus size={18} />
-                </div>
-              </div>
-              <p className="text-brand-500 text-xs font-bold">New (range)</p>
-              <p className="text-lg font-extrabold text-primary">{m.newClientsInRange}</p>
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/crm/deals')}
-              className="bg-white p-4 rounded-2xl border border-brand-200/60 shadow-card text-left hover:shadow-md transition-all"
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <div className="bg-amber-50 p-2 rounded-lg text-amber-600">
-                  <Briefcase size={18} />
-                </div>
-              </div>
-              <p className="text-brand-500 text-xs font-bold">Open Deals</p>
-              <p className="text-lg font-extrabold text-primary">{m.openDealsCount}</p>
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/crm/deals')}
-              className="bg-white p-4 rounded-2xl border border-brand-200/60 shadow-card text-left hover:shadow-md transition-all"
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <div className="bg-brand-100 p-2 rounded-lg text-brand-600">
-                  <TrendingUp size={18} />
-                </div>
-              </div>
-              <p className="text-brand-500 text-xs font-bold">Pipeline Value</p>
-              <p className="text-lg font-extrabold text-primary">{formatCurrency(m.pipelineValue)}</p>
-            </button>
-            <div className="bg-white p-4 rounded-2xl border border-brand-200/60 shadow-card text-left">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="bg-green-50 p-2 rounded-lg text-green-600">
-                  <CheckCircle size={18} />
-                </div>
-              </div>
-              <p className="text-brand-500 text-xs font-bold">Won (range)</p>
-              <p className="text-lg font-extrabold text-primary">{m.wonDealsInRange}</p>
+        <ChartCard title="Fases del Pipeline">
+          {m.pipelineByPhase.length === 0 ? (
+            <div className="h-full flex items-center justify-center text-brand-muted text-sm">Sin datos</div>
+          ) : (
+            <div className="h-[260px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={m.pipelineByPhase} layout="vertical" margin={{ left: 0 }}>
+                  <XAxis type="number" hide />
+                  <YAxis type="category" dataKey="phase" width={80} fontSize={10} tick={{ fill: '#64748b' }} axisLine={false} tickLine={false} />
+                  <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '8px' }} />
+                  <Bar dataKey="count" name="Count" radius={[0, 4, 4, 0]} barSize={24}>
+                    {m.pipelineByPhase.map((entry, i) => (
+                      <Cell key={i} fill={DEAL_STAGE_COLORS[entry.phase] ?? COLORS.brand[300]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-            <div className="bg-white p-4 rounded-2xl border border-brand-200/60 shadow-card text-left">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="bg-brand-100 p-2 rounded-lg text-brand-600">
-                  <Percent size={18} />
-                </div>
-              </div>
-              <p className="text-brand-500 text-xs font-bold">Conversion %</p>
-              <p className="text-lg font-extrabold text-primary">
-                {m.conversionRate != null ? `${m.conversionRate}%` : '–'}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => navigate('/crm/projects')}
-              className="bg-white p-4 rounded-2xl border border-brand-200/60 shadow-card text-left hover:shadow-md transition-all"
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <div className="bg-purple-50 p-2 rounded-lg text-purple-600">
-                  <FolderOpen size={18} />
-                </div>
-              </div>
-              <p className="text-brand-500 text-xs font-bold">Active Projects</p>
-              <p className="text-lg font-extrabold text-primary">{m.activeProjectsCount}</p>
-            </button>
-            <div className="bg-white p-4 rounded-2xl border border-brand-200/60 shadow-card text-left">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="bg-brand-100 p-2 rounded-lg text-brand-600">
-                  <Calendar size={18} />
-                </div>
-              </div>
-              <p className="text-brand-500 text-xs font-bold">Tasks Due Soon</p>
-              <p className="text-lg font-extrabold text-primary">{m.tasksDueSoonCount}</p>
-            </div>
-          </div>
+          )}
+        </ChartCard>
+      </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white p-4 sm:p-6 rounded-2xl border border-brand-200/60 shadow-card min-w-0">
-              <h3 className="font-subtitle text-primary mb-4">Deals by Stage</h3>
-              {m.dealsByStage.length === 0 ? (
-                <p className="py-8 text-center text-brand-500 text-sm">No deal data in this period.</p>
-              ) : (
-                <div className="h-[240px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={m.dealsByStage} layout="vertical" margin={{ left: 80 }}>
-                      <XAxis type="number" fontSize={12} />
-                      <YAxis type="category" dataKey="stage" width={80} fontSize={11} />
-                      <Tooltip />
-                      <Bar dataKey="count" name="Count" radius={[0, 4, 4, 0]}>
-                        {m.dealsByStage.map((entry, i) => (
-                          <Cell key={i} fill={DEAL_STAGE_COLORS[entry.stage] ?? COLORS.brand[300]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </div>
-            <div className="bg-white p-4 sm:p-6 rounded-2xl border border-brand-200/60 shadow-card min-w-0">
-              <h3 className="font-subtitle text-primary mb-4">Projects by Status</h3>
-              {m.projectsByStatus.length === 0 ? (
-                <p className="py-8 text-center text-brand-500 text-sm">No project data.</p>
-              ) : (
-                <div className="h-[240px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={m.projectsByStatus}>
-                      <XAxis dataKey="status" fontSize={11} />
-                      <YAxis fontSize={12} />
-                      <Tooltip />
-                      <Bar dataKey="count" name="Count" fill={COLORS.brand[400]} radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white p-4 sm:p-6 rounded-2xl border border-brand-200/60 shadow-card min-w-0">
-              <h3 className="font-subtitle text-primary mb-4">Pipeline Value by Month</h3>
-              {m.pipelineValueByMonth.length === 0 ? (
-                <p className="py-8 text-center text-brand-500 text-sm">No data in this period.</p>
-              ) : (
-                <div className="h-[220px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={m.pipelineValueByMonth}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="month" fontSize={11} tickFormatter={(v) => v.slice(0, 7)} />
-                      <YAxis fontSize={11} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                      <Tooltip formatter={(v: number) => [formatCurrency(v), 'Value']} labelFormatter={(l) => l?.slice(0, 7)} />
-                      <Line type="monotone" dataKey="value" stroke={COLORS.brand[500]} strokeWidth={2} dot={{ r: 3 }} name="Value" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </div>
-            <div className="bg-white p-4 sm:p-6 rounded-2xl border border-brand-200/60 shadow-card min-w-0">
-              <h3 className="font-subtitle text-primary mb-4">New Leads by Month</h3>
-              {m.newClientsByMonth.length === 0 ? (
-                <p className="py-8 text-center text-brand-500 text-sm">No data in this period.</p>
-              ) : (
-                <div className="h-[220px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={m.newClientsByMonth}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="month" fontSize={11} tickFormatter={(v) => v.slice(0, 7)} />
-                      <YAxis fontSize={11} />
-                      <Tooltip labelFormatter={(l) => l?.slice(0, 7)} />
-                      <Line type="monotone" dataKey="count" stroke={COLORS.brand[400]} strokeWidth={2} dot={{ r: 3 }} name="New leads" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="bg-white p-4 sm:p-6 rounded-2xl border border-brand-200/60 shadow-card">
-<h3 className="font-subtitle text-primary mb-4">Latest Updated Leads</h3>
-            {m.latestUpdatedClients.length === 0 ? (
-                <p className="py-6 text-center text-brand-500 text-sm">No leads yet.</p>
-              ) : (
-                <ul className="divide-y divide-brand-100">
-                  {m.latestUpdatedClients.map((c) => (
-                    <li key={c.id} className="py-2 flex items-center justify-between gap-2 hover:bg-brand-100/30 rounded-lg -mx-2 px-2">
-                      <span className="font-medium text-primary truncate">{c.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/crm/leads/${c.id}`)}
-                        className="shrink-0 p-1.5 text-brand-500 hover:text-primary hover:bg-brand-100/50 rounded-xl transition-colors"
-                      >
-                        <ChevronRight size={16} />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <div className="bg-white p-4 sm:p-6 rounded-2xl border border-brand-200/60 shadow-card">
-              <h3 className="font-subtitle text-primary mb-4">Deals Closing Soon (30 days)</h3>
-              {m.dealsClosingSoon.length === 0 ? (
-                <p className="py-6 text-center text-brand-500 text-sm">No deals closing in the next 30 days.</p>
-              ) : (
-                <ul className="divide-y divide-brand-100">
-                  {m.dealsClosingSoon.map((d) => (
-                    <li key={d.id} className="py-2 flex items-center justify-between gap-2 hover:bg-brand-100/30 rounded-lg -mx-2 px-2">
-                      <div className="min-w-0">
-                        <p className="font-medium text-primary truncate">{d.title}</p>
-                        <p className="text-xs text-brand-500">
-                          {d.clientName ?? d.clientId} · {formatDate(d.expectedCloseDate)}
-                          {d.valueEstimated != null ? ` · ${formatCurrency(d.valueEstimated)}` : ''}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => navigate('/crm/deals')}
-                        className="shrink-0 p-1.5 text-brand-500 hover:text-primary hover:bg-brand-100/50 rounded-xl transition-colors"
-                      >
-                        <ChevronRight size={16} />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <div className="bg-white p-4 sm:p-6 rounded-2xl border border-brand-200/60 shadow-card">
-              <h3 className="font-subtitle text-primary mb-4">Stale Deals (no update 14+ days)</h3>
-              {m.staleDeals.length === 0 ? (
-                <p className="py-6 text-center text-brand-500 text-sm">No stale deals.</p>
-              ) : (
-                <ul className="divide-y divide-brand-100">
-                  {m.staleDeals.map((d) => (
-                    <li key={d.id} className="py-2 flex items-center justify-between gap-2 hover:bg-brand-100/30 rounded-lg -mx-2 px-2">
-                      <div className="min-w-0">
-                        <p className="font-medium text-primary truncate">{d.title}</p>
-                        <p className="text-xs text-brand-500">
-                          {d.clientName ?? d.clientId} · {formatDate(d.updatedAt)} · {d.stage}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => navigate('/crm/deals')}
-                        className="shrink-0 p-1.5 text-brand-500 hover:text-primary hover:bg-brand-100/50 rounded-xl transition-colors"
-                      >
-                        <ChevronRight size={16} />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </>
-      )}
+      {/* Actionable Lists */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <ActionableList
+          title="Cierre Próximo (30 días)"
+          items={m.opportunitiesClosingSoon.map(d => ({
+            id: d.id,
+            title: d.name,
+            subtitle: `Cierre: ${d.expectedCloseDate} · ${formatCurrency(d.value)}`,
+            href: '/crm/pipeline'
+          }))}
+          emptyMessage="No hay cierres próximos"
+        />
+        <ActionableList
+          title="Oportunidades Estancadas (+14 días)"
+          items={m.staleOpportunities.map(d => ({
+            id: d.id,
+            title: d.name,
+            subtitle: `${d.phase} · Actualizado: ${new Date(d.updatedAt).toLocaleDateString()}`,
+            href: '/crm/pipeline'
+          }))}
+          emptyMessage="Todo al día"
+        />
+      </div>
     </div>
   );
 };

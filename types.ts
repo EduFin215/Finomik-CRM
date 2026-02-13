@@ -1,15 +1,32 @@
 export enum Phase {
+  // 1. Prospección (Leads)
   LEAD = 'Lead',
   CONTACTED = 'Contactado',
   INTERESTED = 'Interesado',
+
+  // 2. Ventas (Pipeline)
+  MEETING = 'Reunión Agendada',
+  PROPOSAL = 'Propuesta Enviada',
   NEGOTIATION = 'Negociación',
-  CLOSED = 'Cerrado',
-  SIGNED = 'Firmado'
+
+  // 3. Cierre (Won/Lost)
+  CLOSED_WON = 'Ganado / Firmado',
+  CLOSED_LOST = 'Perdido / Descartado',
+
+  // 4. Onboarding (Proyectos)
+  ONBOARDING_SETUP = 'Configuración Técnica',
+  ONBOARDING_TRAINING = 'Formación',
+  ONBOARDING_DONE = 'Lanzado',
+
+  // 5. Cliente (Active)
+  ACTIVE = 'Cliente Activo',
+  CHURNED = 'Baja'
 }
 
 export enum CommercialStatus {
   FREE = 'Periodo gratuito',
   PAYING = 'Cliente pagando',
+  INTERESTED = 'Interesado',
   NONE = 'N/A'
 }
 
@@ -71,6 +88,12 @@ export interface School {
   tasks: Task[];
   milestones: string[];
   assignedToId?: string | null;
+
+  // New Unified Fields (formerly separate entities)
+  valueEstimated?: number; // Para la fase de venta
+  probability?: number;    // Para la fase de venta
+  expectedCloseDate?: string; // Para la fase de venta
+  startDate?: string;      // Para onboarding
 }
 
 export interface ImportMapping {
@@ -88,80 +111,9 @@ export interface ReminderSettings {
   remindForMeetings: boolean;
 }
 
-// --- CRM (clients, deals, projects) ---
-export type ClientType = 'school' | 'company' | 'partner' | 'lead';
-export type ClientStage = 'new' | 'contacted' | 'meeting' | 'proposal' | 'negotiation' | 'won' | 'lost';
-export type ClientStatus = 'active' | 'archived';
-
-export interface Client {
-  id: string;
-  name: string;
-  type: ClientType;
-  stage: ClientStage;
-  status: ClientStatus;
-  website?: string | null;
-  location?: string | null;
-  city: string;
-  region: string;
-  phone: string;
-  email: string;
-  contactPerson: string;
-  role: string;
-  notes: string;
-  activities: Activity[];
-  tasks: Task[];
-  milestones: string[];
-  assignedToId?: string | null;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export type ContactImportance = 'key' | 'normal';
-
-export interface ClientContact {
-  id: string;
-  clientId: string;
-  fullName: string;
-  roleTitle?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  importance: ContactImportance;
-  notes?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export type DealStage = 'new' | 'qualified' | 'proposal_sent' | 'negotiation' | 'won' | 'lost';
-
-export interface Deal {
-  id: string;
-  clientId: string;
-  title: string;
-  stage: DealStage;
-  valueEstimated?: number | null;
-  currency: string;
-  probability?: number | null;
-  expectedCloseDate?: string | null;
-  notes?: string | null;
-  createdAt: string;
-  updatedAt: string;
-  clientName?: string;
-}
-
-export type ProjectStatus = 'planned' | 'active' | 'blocked' | 'done' | 'archived';
-
-export interface Project {
-  id: string;
-  clientId: string;
-  title: string;
-  status: ProjectStatus;
-  startDate?: string | null;
-  dueDate?: string | null;
-  notes?: string | null;
-  createdAt: string;
-  updatedAt: string;
-  clientName?: string;
-}
+// --- CRM (Unified, simplified types) ---
+// Legacy types removed: Client, ClientContact, Deal, Project.
+// Everything is now standardized on School.
 
 // --- Work tasks (Tasks tool; distinct from school-scoped Task) ---
 export type WorkTaskStatus = 'open' | 'in_progress' | 'done' | 'archived';

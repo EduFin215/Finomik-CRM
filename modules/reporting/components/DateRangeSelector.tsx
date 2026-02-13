@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { DateRangeKey } from '../../../services/crm/dashboard';
 import { DateTimePicker } from '../../tasks/DateTimePicker';
+import { Calendar as CalendarIcon, ChevronDown } from 'lucide-react';
 
 const LABELS: Record<DateRangeKey, string> = {
-  last30: '30 días',
-  last90: '90 días',
-  ytd: 'YTD',
+  last30: 'Últimos 30 días',
+  last90: 'Últimos 90 días',
+  ytd: 'Año actual (YTD)',
   custom: 'Personalizado',
 };
 
@@ -27,11 +28,24 @@ export function DateRangeSelector({
   const [open, setOpen] = useState(false);
   const [customFromLocal, setCustomFromLocal] = useState(customFrom);
   const [customToLocal, setCustomToLocal] = useState(customTo);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setCustomFromLocal(customFrom);
     setCustomToLocal(customTo);
   }, [customFrom, customTo]);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const onOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onOutside);
+    return () => document.removeEventListener('mousedown', onOutside);
+  }, [open]);
 
   const handleSelect = (key: DateRangeKey) => {
     if (key === 'custom') {
@@ -45,64 +59,76 @@ export function DateRangeSelector({
   };
 
   const displayLabel = value === 'custom' && (customFrom || customTo)
-    ? `${customFrom || '…'} – ${customTo || '…'}`
+    ? `${new Date(customFrom).toLocaleDateString()} – ${new Date(customTo).toLocaleDateString()}`
     : LABELS[value];
 
   return (
-    <div className="relative">
+    <div ref={ref} className="relative z-50">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 rounded-xl border border-brand-200/60 bg-white px-3 py-2.5 text-sm font-bold text-primary hover:bg-brand-100/50 transition-colors"
+        className={`
+          flex items-center gap-2.5 rounded-xl border px-3.5 py-2 text-sm font-bold transition-all duration-200
+          ${open
+            ? 'bg-primary text-white border-primary shadow-md'
+            : 'bg-white text-primary border-brand-very-soft/60 hover:border-brand-300 hover:shadow-sm'
+          }
+        `}
       >
+        <CalendarIcon className={`w-4 h-4 ${open ? 'text-white' : 'text-brand-400'}`} />
         <span>{displayLabel}</span>
-        <svg className="h-4 w-4 text-brand-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+        <ChevronDown className={`w-4 h-4 ${open ? 'text-white' : 'text-brand-300'}`} />
       </button>
+
       {open && (
-        <>
-          <div className="fixed inset-0 z-[55]" aria-hidden onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-[60] mt-2 min-w-[200px] rounded-xl border border-brand-200/60 bg-white/95 backdrop-blur-sm py-1 shadow-dropdown">
+        <div className="absolute right-0 top-full z-[60] mt-2 w-[280px] rounded-2xl border border-brand-very-soft/60 bg-white/95 backdrop-blur-xl shadow-xl animate-in fade-in zoom-in-95 origin-top-right overflow-hidden">
+          <div className="p-2 space-y-1">
             {(['last30', 'last90', 'ytd'] as const).map((key) => (
               <button
                 key={key}
                 type="button"
                 onClick={() => handleSelect(key)}
-                className={`block w-full px-4 py-3 text-left text-sm font-bold transition-colors ${value === key ? 'bg-brand-100/50 text-primary' : 'text-brand-600 hover:bg-brand-100/50'}`}
+                className={`
+                  w-full px-4 py-2.5 text-left text-sm font-bold rounded-xl transition-all
+                  ${value === key
+                    ? 'bg-brand-50 text-primary'
+                    : 'text-brand-600 hover:bg-brand-50/50 hover:text-primary'
+                  }
+                `}
               >
                 {LABELS[key]}
               </button>
             ))}
-            <div className="border-t border-brand-100 px-4 py-3">
-              <p className="text-xs font-bold uppercase text-brand-500 mb-2">Personalizado</p>
-              <div className="flex gap-2 items-center flex-wrap">
-                <DateTimePicker
-                  dateValue={customFromLocal}
-                  onChangeDate={setCustomFromLocal}
-                  showTime={false}
-                  placeholder="Desde"
-                  className="flex-1 min-w-[140px]"
-                />
-                <span className="text-brand-400 shrink-0">–</span>
-                <DateTimePicker
-                  dateValue={customToLocal}
-                  onChangeDate={setCustomToLocal}
-                  showTime={false}
-                  placeholder="Hasta"
-                  className="flex-1 min-w-[140px]"
-                />
-              </div>
+          </div>
+
+          <div className="border-t border-brand-very-soft/50 p-4 bg-brand-50/20">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-brand-400 mb-2">Rango Personalizado</p>
+            <div className="space-y-3">
+              <DateTimePicker
+                dateValue={customFromLocal}
+                onChangeDate={setCustomFromLocal}
+                showTime={false}
+                placeholder="Desde"
+                className="w-full"
+              />
+              <DateTimePicker
+                dateValue={customToLocal}
+                onChangeDate={setCustomToLocal}
+                showTime={false}
+                placeholder="Hasta"
+                className="w-full"
+              />
+
               <button
                 type="button"
                 onClick={() => handleSelect('custom')}
-                className="mt-2 w-full rounded-xl bg-primary px-3 py-2 text-sm font-bold text-white hover:bg-brand-600 transition-colors"
+                className="w-full rounded-xl bg-primary px-3 py-2.5 text-sm font-bold text-white shadow-md shadow-primary/20 hover:bg-brand-600 transition-all hover:translate-y-[-1px]"
               >
-                Aplicar
+                Aplicar Rango
               </button>
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { X, Link2, User } from 'lucide-react';
+import { Link2, User, ClipboardCheck } from 'lucide-react';
 import type { WorkTask, WorkTaskPriority, WorkTaskLinkEntityType } from '../../types';
 import {
   createWorkTask,
@@ -13,7 +13,8 @@ import { listDeals } from '../../services/crm/deals';
 import { listProjects } from '../../services/crm/projects';
 import { isSupabaseConfigured } from '../../services/supabase';
 import { DateTimePicker } from './DateTimePicker';
-import { Select, type SelectOption } from './Select';
+import { Select } from './Select';
+import { Modal } from '../../components/ui/Modal';
 
 type FormState = {
   title: string;
@@ -104,14 +105,14 @@ function formToPayload(
     form.dueDate && form.dueTime
       ? new Date(`${form.dueDate}T${form.dueTime}`).toISOString()
       : form.dueDate
-      ? new Date(form.dueDate + 'T12:00:00').toISOString()
-      : null;
+        ? new Date(form.dueDate + 'T12:00:00').toISOString()
+        : null;
   const remindAt =
     form.remindDate && form.remindTime
       ? new Date(`${form.remindDate}T${form.remindTime}`).toISOString()
       : form.remindDate
-      ? new Date(form.remindDate + 'T09:00:00').toISOString()
-      : null;
+        ? new Date(form.remindDate + 'T09:00:00').toISOString()
+        : null;
   const links: { entityType: WorkTaskLinkEntityType; entityId: string | null }[] = [];
   if (form.linkEntityType) {
     links.push({
@@ -212,209 +213,189 @@ export default function TaskFormModal({
   };
 
   const inputClass =
-    'w-full rounded-xl border border-brand-200 bg-white px-4 py-3 text-sm text-primary placeholder:text-brand-400 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-shadow';
-  const labelClass = 'block text-xs font-semibold text-brand-600 uppercase tracking-wider mb-2';
+    'w-full rounded-xl border border-brand-200/60 bg-white px-4 py-3 text-sm text-primary placeholder:text-brand-soft focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-shadow';
+  const labelClass = 'block text-xs font-bold text-brand-600 uppercase tracking-wide mb-1.5';
+
+  const footer = (
+    <>
+      <button
+        type="button"
+        onClick={onClose}
+        className="rounded-xl border border-brand-200/60 px-4 py-2.5 text-sm font-bold text-brand-700 hover:bg-brand-100/50 transition-colors"
+      >
+        Cancelar
+      </button>
+      <button
+        onClick={handleSubmit}
+        disabled={saving}
+        className="rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white hover:bg-brand-600 transition-colors disabled:opacity-50 shadow-md"
+      >
+        {saving ? 'Guardando...' : initialTask ? 'Guardar' : 'Crear tarea'}
+      </button>
+    </>
+  );
 
   return (
-    <>
-      <style>{`
-        @keyframes slideInRight {
-          from { transform: translateX(100%); }
-          to { transform: translateX(0); }
-        }
-      `}</style>
-      <div
-        className="fixed inset-0 z-40 bg-black/25"
-        aria-hidden
-        onClick={onClose}
-      />
-      {/* Panel 33% ancho a la derecha */}
-      <div
-        className="fixed top-0 bottom-0 right-0 z-50 h-screen flex flex-col bg-white animate-[slideInRight_0.25s_ease-out]"
-        style={{
-          width: 'min(33vw, 100vw)',
-          minWidth: '320px',
-          maxWidth: '100vw',
-          boxShadow: '-4px 0 24px rgba(11, 48, 100, 0.12)',
-        }}
-      >
-        <header className="shrink-0 flex items-center justify-between gap-3 px-6 py-4 border-b border-brand-100 bg-white">
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 rounded-xl text-brand-500 hover:bg-brand-100 transition-colors"
-            aria-label="Cerrar"
-          >
-            <X className="w-5 h-5" />
-          </button>
-          <h2 className="text-lg font-bold text-primary">
-            {initialTask ? 'Editar tarea' : 'Nueva tarea'}
-          </h2>
-          <div className="w-9" aria-hidden />
-        </header>
-
-        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
-          <div className="flex-1 overflow-y-auto min-h-0">
-            <div className="p-6 pb-8 space-y-5 min-h-full">
-              <h3 className="text-sm font-bold text-brand-500 uppercase tracking-wider pb-1">
-                Detalles de la tarea
-              </h3>
-              <div>
-                <label className={labelClass}>Título *</label>
-                <input
-                  type="text"
-                  value={form.title}
-                  onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                  placeholder="Nombre de la tarea"
-                  className={inputClass}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className={labelClass}>Descripción</label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                  rows={2}
-                  placeholder="Añade detalles..."
-                  className={`${inputClass} resize-none`}
-                />
-              </div>
-
-              {/* Prioridad */}
-              <div>
-                <label className={labelClass}>Prioridad</label>
-                <div className="flex gap-2">
-                  {(['low', 'medium', 'high'] as const).map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setForm((prev) => ({ ...prev, priority: p }))}
-                      className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition-all ${
-                        form.priority === p
-                          ? p === 'high'
-                            ? 'bg-red-100 text-red-700 ring-2 ring-red-200'
-                            : p === 'medium'
-                            ? 'bg-amber-100 text-amber-700 ring-2 ring-amber-200'
-                            : 'bg-brand-100 text-primary ring-2 ring-brand-200'
-                          : 'bg-brand-50/80 text-brand-600 hover:bg-brand-100'
-                      }`}
-                    >
-                      {p === 'high' ? 'Alta' : p === 'medium' ? 'Media' : 'Baja'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Fechas en 2 columnas */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <DateTimePicker
-                  label="Vencimiento"
-                  dateValue={form.dueDate}
-                  timeValue={form.dueTime}
-                  onChangeDate={(v) => setForm((p) => ({ ...p, dueDate: v }))}
-                  onChangeTime={(v) => setForm((p) => ({ ...p, dueTime: v }))}
-                  placeholder="Fecha y hora"
-                />
-                <DateTimePicker
-                  label="Recordatorio"
-                  dateValue={form.remindDate}
-                  timeValue={form.remindTime}
-                  onChangeDate={(v) => setForm((p) => ({ ...p, remindDate: v }))}
-                  onChangeTime={(v) => setForm((p) => ({ ...p, remindTime: v }))}
-                  placeholder="Fecha y hora"
-                />
-              </div>
-
-              {/* Vinculación */}
-              <div className="space-y-4">
-                <Select
-                  label="Vincular a"
-                  value={form.linkEntityType}
-                  options={[
-                    { value: 'client', label: 'Lead' },
-                    { value: 'deal', label: 'Deal' },
-                    { value: 'project', label: 'Proyecto' },
-                    { value: 'internal', label: 'Interno' },
-                  ]}
-                  onChange={(v) =>
-                    setForm((p) => ({
-                      ...p,
-                      linkEntityType: v as WorkTaskLinkEntityType | '',
-                      linkEntityId: '',
-                    }))
-                  }
-                  placeholder="Ninguno"
-                  icon={<Link2 className="w-4 h-4" />}
-                />
-                {form.linkEntityType === 'client' && (
-                  <Select
-                    label="Lead"
-                    value={form.linkEntityId}
-                    options={clients.map((c) => ({ value: c.id, label: c.name }))}
-                    onChange={(v) => setForm((p) => ({ ...p, linkEntityId: v }))}
-                    placeholder="Seleccionar lead"
-                  />
-                )}
-                {form.linkEntityType === 'deal' && (
-                  <Select
-                    label="Deal"
-                    value={form.linkEntityId}
-                    options={deals.map((d) => ({
-                      value: d.id,
-                      label: `${d.title}${d.clientName ? ` (${d.clientName})` : ''}`,
-                    }))}
-                    onChange={(v) => setForm((p) => ({ ...p, linkEntityId: v }))}
-                    placeholder="Seleccionar deal"
-                  />
-                )}
-                {form.linkEntityType === 'project' && (
-                  <Select
-                    label="Proyecto"
-                    value={form.linkEntityId}
-                    options={projects.map((p) => ({
-                      value: p.id,
-                      label: `${p.title}${p.clientName ? ` (${p.clientName})` : ''}`,
-                    }))}
-                    onChange={(v) => setForm((p) => ({ ...p, linkEntityId: v }))}
-                    placeholder="Seleccionar proyecto"
-                  />
-                )}
-              </div>
-
-              <Select
-                label="Asignado a"
-                value={form.assigneeUserId}
-                options={profiles.map((p) => ({
-                  value: p.id,
-                  label: p.displayName || p.email || p.id,
-                }))}
-                onChange={(v) => setForm((p) => ({ ...p, assigneeUserId: v }))}
-                placeholder="Sin asignar"
-                icon={<User className="w-4 h-4" />}
-              />
-            </div>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title={
+        <div className="flex items-center gap-3">
+          <div className="bg-brand-100/50 p-2 rounded-xl text-primary">
+            <ClipboardCheck className="w-6 h-6" />
           </div>
+          <div>
+            <span className="block text-xl font-extrabold text-primary">
+              {initialTask ? 'Editar Tarea' : 'Nueva Tarea'}
+            </span>
+            <span className="block text-brand-muted text-xs font-body font-normal mt-0.5">
+              {initialTask ? 'Modifica los detalles de la tarea' : 'Crea una nueva tarea para el equipo'}
+            </span>
+          </div>
+        </div>
+      }
+      maxWidth="xl"
+      footer={footer}
+    >
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div>
+          <label className={labelClass}>Título *</label>
+          <input
+            type="text"
+            value={form.title}
+            onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+            placeholder="Nombre de la tarea"
+            className={inputClass}
+            required
+            autoFocus
+          />
+        </div>
 
-          <footer className="shrink-0 flex gap-3 p-6 border-t border-brand-100 bg-white">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 rounded-xl border border-brand-200 py-3 text-sm font-semibold text-brand-700 hover:bg-brand-50 transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 rounded-xl bg-primary py-3 text-sm font-semibold text-white shadow-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
-            >
-              {saving ? 'Guardando...' : initialTask ? 'Guardar' : 'Crear tarea'}
-            </button>
-          </footer>
-        </form>
-      </div>
-    </>
+        <div>
+          <label className={labelClass}>Descripción</label>
+          <textarea
+            value={form.description}
+            onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+            rows={3}
+            placeholder="Añade detalles..."
+            className={`${inputClass} resize-none`}
+          />
+        </div>
+
+        {/* Prioridad */}
+        <div>
+          <label className={labelClass}>Prioridad</label>
+          <div className="flex gap-2">
+            {(['low', 'medium', 'high'] as const).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setForm((prev) => ({ ...prev, priority: p }))}
+                className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition-all border ${form.priority === p
+                  ? p === 'high'
+                    ? 'bg-red-50 text-red-700 border-red-200 ring-1 ring-red-200'
+                    : p === 'medium'
+                      ? 'bg-amber-50 text-amber-700 border-amber-200 ring-1 ring-amber-200'
+                      : 'bg-brand-50 text-primary border-brand-200 ring-1 ring-brand-200'
+                  : 'bg-white text-brand-muted border-brand-100 hover:bg-brand-50'
+                  }`}
+              >
+                {p === 'high' ? 'Alta' : p === 'medium' ? 'Media' : 'Baja'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Fechas */}
+        <div className="space-y-4">
+          <DateTimePicker
+            label="Vencimiento"
+            dateValue={form.dueDate}
+            timeValue={form.dueTime}
+            onChangeDate={(v) => setForm((p) => ({ ...p, dueDate: v }))}
+            onChangeTime={(v) => setForm((p) => ({ ...p, dueTime: v }))}
+            placeholder="Fecha y hora"
+          />
+          <DateTimePicker
+            label="Recordatorio"
+            dateValue={form.remindDate}
+            timeValue={form.remindTime}
+            onChangeDate={(v) => setForm((p) => ({ ...p, remindDate: v }))}
+            onChangeTime={(v) => setForm((p) => ({ ...p, remindTime: v }))}
+            placeholder="Fecha y hora"
+          />
+        </div>
+
+        <div className="h-px bg-brand-very-soft/40" />
+
+        {/* Vinculación */}
+        <div className="space-y-4">
+          <Select
+            label="Vincular a"
+            value={form.linkEntityType}
+            options={[
+              { value: 'client', label: 'Lead' },
+              { value: 'deal', label: 'Deal' },
+              { value: 'project', label: 'Proyecto' },
+              { value: 'internal', label: 'Interno' },
+            ]}
+            onChange={(v) =>
+              setForm((p) => ({
+                ...p,
+                linkEntityType: v as WorkTaskLinkEntityType | '',
+                linkEntityId: '',
+              }))
+            }
+            placeholder="Ninguno"
+            icon={<Link2 className="w-4 h-4" />}
+          />
+          {form.linkEntityType === 'client' && (
+            <Select
+              label="Lead"
+              value={form.linkEntityId}
+              options={clients.map((c) => ({ value: c.id, label: c.name }))}
+              onChange={(v) => setForm((p) => ({ ...p, linkEntityId: v }))}
+              placeholder="Seleccionar lead"
+            />
+          )}
+          {form.linkEntityType === 'deal' && (
+            <Select
+              label="Deal"
+              value={form.linkEntityId}
+              options={deals.map((d) => ({
+                value: d.id,
+                label: `${d.title}${d.clientName ? ` (${d.clientName})` : ''}`,
+              }))}
+              onChange={(v) => setForm((p) => ({ ...p, linkEntityId: v }))}
+              placeholder="Seleccionar deal"
+            />
+          )}
+          {form.linkEntityType === 'project' && (
+            <Select
+              label="Proyecto"
+              value={form.linkEntityId}
+              options={projects.map((p) => ({
+                value: p.id,
+                label: `${p.title}${p.clientName ? ` (${p.clientName})` : ''}`,
+              }))}
+              onChange={(v) => setForm((p) => ({ ...p, linkEntityId: v }))}
+              placeholder="Seleccionar proyecto"
+            />
+          )}
+        </div>
+
+        <Select
+          label="Asignado a"
+          value={form.assigneeUserId}
+          options={profiles.map((p) => ({
+            value: p.id,
+            label: p.displayName || p.email || p.id,
+          }))}
+          onChange={(v) => setForm((p) => ({ ...p, assigneeUserId: v }))}
+          placeholder="Sin asignar"
+          icon={<User className="w-4 h-4" />}
+        />
+      </form>
+    </Modal>
   );
 }

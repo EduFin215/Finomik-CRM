@@ -55,9 +55,9 @@ export default function TasksView() {
     }
   };
 
-  const navLinkBase = 'w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors duration-200 font-bold';
-  const navActive = 'bg-brand-600 text-white';
-  const navInactive = 'text-brand-200 hover:bg-white/10';
+  const navLinkBase = 'w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-bold';
+  const navActive = 'bg-white/10 text-white shadow-glow border border-white/20 backdrop-blur-glass';
+  const navInactive = 'text-brand-very-soft/70 hover:bg-white/5 hover:text-white';
 
   return (
     <ToolLayout currentTool={currentTool}>
@@ -74,12 +74,12 @@ export default function TasksView() {
           className={`
             sidebar-dark fixed lg:static inset-y-0 left-0 z-50 w-64 flex flex-col shrink-0
             transform transition-transform duration-200 ease-out
-            bg-primary/95 backdrop-blur-xl text-white border-r-0
+            bg-gradient-sidebar text-white shadow-2xl border-r-0
             ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           `}
         >
           <nav className="flex-1 px-4 space-y-1 overflow-y-auto pt-4">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-brand-200/80 pt-2 pb-2 px-4">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-brand-very-soft/60 pt-2 pb-2 px-4">
               Filtro
             </div>
             <NavLink
@@ -97,7 +97,7 @@ export default function TasksView() {
             >
               Todas
             </NavLink>
-            <div className="text-[10px] font-bold uppercase tracking-wider text-brand-200/80 pt-4 pb-2 px-4">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-brand-very-soft/60 pt-4 pb-2 px-4">
               Vistas
             </div>
             {VIEWS.map((v) => {

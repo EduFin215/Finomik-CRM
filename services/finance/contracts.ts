@@ -43,6 +43,24 @@ export async function listFinanceContracts(): Promise<FinanceContract[]> {
   });
 }
 
+export async function listFinanceContractsByClient(clientId: string): Promise<FinanceContract[]> {
+  if (!isSupabaseConfigured() || !supabase) return [];
+  const { data, error } = await supabase
+    .from('finance_contracts')
+    .select('*, schools(name)')
+    .eq('client_id', clientId)
+    .order('start_date', { ascending: false });
+  if (error || !data) return [];
+  return (data as Record<string, unknown>[]).map((row) => {
+    const school = row.schools as { name?: string } | null;
+    return rowToContract({
+      ...row,
+      clientName: school?.name,
+      schools: undefined,
+    });
+  });
+}
+
 export async function getFinanceContract(id: string): Promise<FinanceContract | null> {
   if (!isSupabaseConfigured() || !supabase) return null;
   const { data, error } = await supabase

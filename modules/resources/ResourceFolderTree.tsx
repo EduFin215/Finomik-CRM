@@ -51,12 +51,11 @@ function FolderTreeItem({
   return (
     <div className="select-none">
       <div
-        className={`flex items-center gap-2 py-2 px-3 rounded-xl cursor-pointer transition-colors duration-200 text-sm font-body ${
-          isSelected
-            ? 'bg-white/15 text-white'
-            : 'text-brand-200 hover:bg-white/10 hover:text-white'
-        }`}
-        style={{ paddingLeft: `${12 + depth * 16}px` }}
+        className={`w-full flex items-center gap-3 py-3 px-4 rounded-xl cursor-pointer transition-all duration-300 font-bold ${isSelected
+          ? 'bg-white/10 text-white shadow-glow border border-white/20 backdrop-blur-glass'
+          : 'text-brand-very-soft/70 hover:bg-white/5 hover:text-white'
+          }`}
+        style={{ paddingLeft: `${16 + depth * 16}px` }}
         onClick={() => onSelectFolder(node.id)}
       >
         <button
@@ -80,7 +79,7 @@ function FolderTreeItem({
         </button>
         <Folder
           size={18}
-          className={`shrink-0 ${isSelected ? 'text-white' : 'text-brand-200'}`}
+          className={`shrink-0 ${isSelected ? 'text-white' : 'text-brand-very-soft/70'}`}
         />
         <span className="truncate font-bold">{node.name}</span>
       </div>
@@ -125,8 +124,7 @@ export function ResourceFolderTree({
 
   return (
     <aside
-      className={`w-64 flex flex-col shrink-0 h-full min-h-0 bg-brand-600 ${className}`}
-      style={{ background: '#0B3064' }}
+      className={`w-full flex flex-col shrink-0 h-full min-h-0 bg-transparent ${className}`}
     >
       <div className="p-4 shrink-0 space-y-4">
         <div className="flex gap-2">
@@ -154,47 +152,47 @@ export function ResourceFolderTree({
           </button>
         </div>
         <div>
-          <h2 className="text-xs font-bold text-brand-200 uppercase tracking-wider mb-2">Storage</h2>
-          <div className="space-y-0.5">
-          <button
-            type="button"
-            onClick={() => {
-              onViewModeChange('all');
-              onSelectFolder(null);
-            }}
-            className={`w-full flex items-center gap-2 py-2.5 px-3 rounded-lg text-sm font-bold transition-colors ${
-              isOverview
-                ? 'bg-white/15 text-white border-b-2 border-white'
-                : 'text-brand-200 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            <HardDrive size={18} />
-            Mis archivos
-          </button>
-          <button
-            type="button"
-            onClick={() => onViewModeChange('recent')}
-            className={`w-full flex items-center gap-2 py-2.5 px-3 rounded-lg text-sm font-bold transition-colors ${
-              viewMode === 'recent' && isOverview
-                ? 'bg-white/15 text-white'
-                : 'text-brand-200 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            <Clock size={18} />
-            Recientes
-          </button>
-        </div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-brand-very-soft/60 pt-2 pb-2 px-1">
+            Storage
+          </div>
+          <div className="space-y-1">
+            <button
+              type="button"
+              onClick={() => {
+                onViewModeChange('all');
+                onSelectFolder(null);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-bold ${isOverview
+                ? 'bg-white/10 text-white shadow-glow border border-white/20 backdrop-blur-glass'
+                : 'text-brand-very-soft/70 hover:bg-white/5 hover:text-white'
+                }`}
+            >
+              <HardDrive size={20} />
+              Mis archivos
+            </button>
+            <button
+              type="button"
+              onClick={() => onViewModeChange('recent')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-bold ${viewMode === 'recent' && isOverview
+                ? 'bg-white/10 text-white shadow-glow border border-white/20 backdrop-blur-glass'
+                : 'text-brand-very-soft/70 hover:bg-white/5 hover:text-white'
+                }`}
+            >
+              <Clock size={20} />
+              Recientes
+            </button>
+          </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto py-2 px-2 min-h-0">
-        <div className="text-[10px] font-bold uppercase tracking-wider text-brand-300 px-3 mb-2">
+        <div className="text-[10px] font-bold uppercase tracking-wider text-brand-very-soft/60 pt-2 pb-2 px-1">
           Carpetas
         </div>
         {isLoading ? (
           <p className="px-3 py-2 text-xs text-brand-300">Cargando...</p>
         ) : (
-          <div className="space-y-0.5">
+          <div className="space-y-1">
             {tree.map((node) => (
               <FolderTreeItem
                 key={node.id}
