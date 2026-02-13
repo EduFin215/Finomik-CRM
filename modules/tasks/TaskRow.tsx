@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CheckSquare, Square, Pencil, Clock } from 'lucide-react';
 import type { WorkTask, WorkTaskPriority, WorkTaskLinkEntityType } from '../../types';
 import { markWorkTaskDone, snoozeWorkTask } from '../../services/tasks';
+import { formatTaskDateTime } from './formatTaskDate';
 
 const PRIORITY_LABELS: Record<WorkTaskPriority, string> = {
   low: 'L',
@@ -10,23 +11,11 @@ const PRIORITY_LABELS: Record<WorkTaskPriority, string> = {
 };
 
 const ENTITY_LABELS: Record<WorkTaskLinkEntityType, string> = {
-  client: 'Client',
+  client: 'Lead',
   deal: 'Deal',
   project: 'Project',
   internal: 'Internal',
 };
-
-function formatDue(iso: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { dateStyle: 'short' });
-}
-
-function formatRemind(iso: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
-}
 
 function addSnooze(remindAt: string | null, delta: '1d' | '3d' | '1w'): string {
   const base = remindAt ? new Date(remindAt) : new Date();
@@ -114,12 +103,12 @@ export default function TaskRow({ task, isOverdue, onEdit, onDone, onSnooze }: T
           {task.dueAt && (
             <span className="text-[10px] text-brand-500 flex items-center gap-0.5">
               <Clock size={10} />
-              {formatDue(task.dueAt)}
+              {formatTaskDateTime(task.dueAt)}
             </span>
           )}
           {task.remindAt && (
             <span className="text-[10px] text-brand-500">
-              Remind: {formatRemind(task.remindAt)}
+              Recordatorio: {formatTaskDateTime(task.remindAt)}
             </span>
           )}
         </div>
@@ -137,29 +126,29 @@ export default function TaskRow({ task, isOverdue, onEdit, onDone, onSnooze }: T
           {snoozeOpen && (
             <>
               <div
-                className="fixed inset-0 z-10"
+                className="fixed inset-0 z-[55]"
                 aria-hidden
                 onClick={() => setSnoozeOpen(false)}
               />
-              <div className="absolute right-0 top-full mt-1 z-20 rounded-xl border border-brand-200/60 bg-white shadow-dropdown py-1 min-w-[100px]">
+              <div className="absolute right-0 top-full mt-2 z-[60] min-w-[100px] rounded-xl border border-brand-200/60 bg-white/95 backdrop-blur-sm shadow-dropdown py-1">
                 <button
                   type="button"
                   onClick={() => handleSnooze('1d')}
-                  className="block w-full text-left px-3 py-2 text-sm font-body hover:bg-brand-100/50 rounded-lg mx-1"
+                  className="w-full px-4 py-3 text-left text-sm font-bold text-brand-600 hover:bg-brand-100/50 transition-colors"
                 >
                   +1 day
                 </button>
                 <button
                   type="button"
                   onClick={() => handleSnooze('3d')}
-                  className="block w-full text-left px-3 py-2 text-sm font-body hover:bg-brand-100/50 rounded-lg mx-1"
+                  className="w-full px-4 py-3 text-left text-sm font-bold text-brand-600 hover:bg-brand-100/50 transition-colors"
                 >
                   +3 days
                 </button>
                 <button
                   type="button"
                   onClick={() => handleSnooze('1w')}
-                  className="block w-full text-left px-3 py-2 text-sm font-body hover:bg-brand-100/50 rounded-lg mx-1"
+                  className="w-full px-4 py-3 text-left text-sm font-bold text-brand-600 hover:bg-brand-100/50 transition-colors"
                 >
                   +1 week
                 </button>

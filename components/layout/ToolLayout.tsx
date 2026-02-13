@@ -22,65 +22,77 @@ export function ToolLayout({
 }: ToolLayoutProps) {
   const { user, signOut } = useAuth();
   const notificationCount = useWorkTaskNotificationCount(user?.id);
+  const initials = user?.email
+    ? user.email.slice(0, 2).toUpperCase()
+    : 'U';
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-white">
-      <header className="relative z-[60] h-14 sm:h-16 bg-white/90 backdrop-blur-xl border-b border-brand-200/60 flex items-center justify-between gap-2 px-3 sm:px-6 lg:px-8 shrink-0">
-        <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
+      <header className="icons-filled-blue relative z-[60] h-14 sm:h-16 shrink-0 flex items-center justify-between gap-4 px-4 sm:px-6 lg:px-8 bg-white border-b border-brand-200/50">
+        <div className="flex items-center gap-4 sm:gap-6 flex-1 min-w-0">
+          <Link
+            to="/"
+            className="shrink-0 flex items-center py-1"
+            aria-label="Finomik"
+          >
+            <img
+              src="/finomik-logo-white.png"
+              alt="Finomik"
+              className="h-10 sm:h-11 w-auto object-contain"
+            />
+          </Link>
+          <div className="hidden sm:block w-px h-8 bg-brand-200/60" />
           <ToolSwitcherDropdown currentTool={currentTool} tools={TOOLS} />
-          <div className="relative flex-1 min-w-0 max-w-xl">
+          <div className="relative flex-1 min-w-0 max-w-md">
             {searchSlot ?? (
-              <>
+              <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-400 w-4 h-4 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Buscar..."
-                  className="w-full pl-10 pr-3 sm:pr-4 py-2.5 bg-brand-100/50 border border-brand-200/60 focus:bg-white focus:border-primary rounded-xl text-sm transition-all outline-none font-body text-primary placeholder:text-brand-400"
+                  className="w-full pl-10 pr-4 py-2 bg-brand-100/50 border border-brand-200/60 rounded-lg text-sm text-primary placeholder:text-brand-400 font-body focus:bg-white focus:border-primary focus:outline-none transition-colors"
                   readOnly
                   aria-label="Búsqueda global (próximamente)"
                 />
-              </>
+              </div>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-1 sm:gap-4 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-3 shrink-0">
           {notificationsSlot ?? (
-            <div className="relative flex items-center gap-2 pr-4 border-r border-brand-200">
-              <Link
-                to="/tasks"
-                className="relative p-2 text-brand-500 hover:bg-brand-100/50 rounded-full transition-colors"
-                aria-label="Notificaciones"
-              >
-                <Bell size={20} />
-                {notificationCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-                    {notificationCount > 99 ? '99+' : notificationCount}
-                  </span>
-                )}
-              </Link>
-            </div>
+            <Link
+              to="/tasks"
+              className="relative p-2.5 rounded-lg text-brand-600 hover:bg-brand-100/50 transition-colors"
+              aria-label="Notificaciones"
+            >
+              <Bell size={20} />
+              {notificationCount > 0 && (
+                <span className="absolute top-1 right-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                  {notificationCount > 99 ? '99+' : notificationCount}
+                </span>
+              )}
+            </Link>
           )}
-          <div className="flex items-center gap-3 pl-2">
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold text-primary">{user?.email ?? 'Usuario'}</p>
-              <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary text-white px-2 py-0.5 text-[10px] font-bold tracking-wide">
-                <span className="w-1.5 h-1.5 rounded-full bg-white/80" />
-                {currentTool.name}
-              </p>
+          <div className="hidden sm:block w-px h-6 bg-brand-200/60" />
+          <div className="flex items-center gap-2">
+            <div
+              className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0"
+              title={user?.email ?? 'Usuario'}
+            >
+              {initials}
             </div>
             <button
               type="button"
               onClick={() => signOut()}
-              className="flex items-center gap-2 px-3 py-2 text-brand-600 hover:bg-brand-100/50 hover:text-primary rounded-xl text-sm font-body transition-colors"
+              className="p-2.5 rounded-lg text-brand-600 hover:bg-brand-100/50 transition-colors"
               title="Cerrar sesión"
             >
               <LogOut size={18} />
-              <span className="hidden sm:inline">Cerrar sesión</span>
             </button>
           </div>
         </div>
       </header>
-      <div className="flex-1 overflow-hidden min-w-0">{children}</div>
+      <div className="icons-filled-blue flex-1 overflow-hidden min-w-0">{children}</div>
     </div>
   );
 }

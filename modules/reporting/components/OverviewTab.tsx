@@ -75,8 +75,8 @@ export function OverviewTab({ range, drillDownQuery }: OverviewTabProps) {
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
-        <KpiCard value={k.activeClients} label="Clientes activos" onClick={() => navigate(`/crm/clients?status=active`)} />
-        <KpiCard value={k.newClientsInRange} label="Nuevos clientes" onClick={() => navigate(`/crm/clients?createdFrom=${range.from}&createdTo=${range.to}`)} />
+        <KpiCard value={k.activeClients} label="Leads activos" onClick={() => navigate(`/crm/leads?status=active`)} />
+        <KpiCard value={k.newClientsInRange} label="Nuevos leads" onClick={() => navigate(`/crm/leads?createdFrom=${range.from}&createdTo=${range.to}`)} />
         <KpiCard value={k.openDeals} label="Deals abiertos" onClick={() => navigate(`/crm/deals${qs}`)} />
         <KpiCard value={formatCurrency(k.pipelineValue)} label="Pipeline" onClick={() => navigate(`/crm/deals${qs}`)} />
         <KpiCard value={k.activeProjects} label="Proyectos activos" onClick={() => navigate(`/crm/projects?status=active`)} />
@@ -154,7 +154,7 @@ export function OverviewTab({ range, drillDownQuery }: OverviewTabProps) {
             id: d.id,
             title: d.title,
             subtitle: d.expectedCloseDate ? new Date(d.expectedCloseDate).toLocaleDateString('es-ES') : undefined,
-            href: `/crm/clients/${d.clientId}`,
+            href: `/crm/leads/${d.clientId}`,
           }))}
         />
         <ActionableList

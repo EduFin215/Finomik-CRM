@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { X, Save, School as SchoolIcon, Phone } from 'lucide-react';
+import { XMarkIcon, DocumentArrowDownIcon, AcademicCapIcon, PhoneIcon } from '@heroicons/react/24/solid';
+import { Save } from 'lucide-react';
 import { School, Phase, CommercialStatus } from '../types';
+import { Select } from '../modules/tasks/Select';
 
 interface NewSchoolModalProps {
   onClose: () => void;
@@ -70,15 +72,15 @@ const NewSchoolModal: React.FC<NewSchoolModalProps> = ({ onClose, onCreate }) =>
         <div className="bg-primary text-white p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-brand-600 p-2 rounded-xl">
-              <SchoolIcon size={24} />
+              <AcademicCapIcon className="w-6 h-6" />
             </div>
             <div>
-              <h2 id="new-school-title" className="text-xl font-extrabold">Añadir Nuevo Centro</h2>
-              <p className="text-brand-200 text-xs font-body">Completa los datos para registrar la escuela en el CRM.</p>
+              <h2 id="new-school-title" className="text-xl font-extrabold">Nuevo Lead</h2>
+              <p className="text-brand-200 text-xs font-body">Completa los datos para registrar el lead en el CRM.</p>
             </div>
           </div>
           <button onClick={onClose} className="text-brand-200 hover:text-white transition-colors">
-            <X size={24} />
+            <XMarkIcon className="w-6 h-6" />
           </button>
         </div>
 
@@ -86,7 +88,7 @@ const NewSchoolModal: React.FC<NewSchoolModalProps> = ({ onClose, onCreate }) =>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4 md:col-span-2">
               <h3 className="text-xs font-bold text-brand-500 uppercase tracking-widest flex items-center gap-2">
-                <SchoolIcon size={14} /> Información Básica
+                <AcademicCapIcon className="w-3.5 h-3.5" /> Información Básica
               </h3>
               <div className="relative">
                 <label className="text-[10px] font-bold text-brand-500 absolute top-2 left-3">Nombre del Colegio *</label>
@@ -130,7 +132,7 @@ const NewSchoolModal: React.FC<NewSchoolModalProps> = ({ onClose, onCreate }) =>
 
             <div className="space-y-4 md:col-span-2 mt-4">
               <h3 className="text-xs font-bold text-brand-400 uppercase tracking-widest flex items-center gap-2">
-                <Phone size={14} /> Contacto
+                <PhoneIcon className="w-3.5 h-3.5" /> Contacto
               </h3>
             </div>
 
@@ -185,28 +187,24 @@ const NewSchoolModal: React.FC<NewSchoolModalProps> = ({ onClose, onCreate }) =>
               <h3 className="text-xs font-bold text-brand-400 uppercase tracking-widest">Pipeline y Estado</h3>
             </div>
 
-            <div className="relative">
-              <label className="text-[10px] font-bold text-brand-500 absolute top-2 left-3">Fase Inicial</label>
-              <select
-                name="phase"
-                value={formData.phase}
-                onChange={handleChange}
-                className="w-full pt-6 pb-2 px-3 bg-white border border-brand-200 rounded-xl focus:ring-2 focus:ring-brand-100 focus:border-primary outline-none transition-all text-sm font-body appearance-none"
-              >
-                {Object.values(Phase).map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
+            <div>
+              <Select
+                label="Fase Inicial"
+                value={formData.phase ?? ''}
+                onChange={(v) => setFormData((prev) => ({ ...prev, phase: v as Phase }))}
+                placeholder="Fase"
+                options={Object.values(Phase).map((p) => ({ value: p, label: p }))}
+              />
             </div>
 
-            <div className="relative">
-              <label className="text-[10px] font-bold text-brand-500 absolute top-2 left-3">Estado Comercial</label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                className="w-full pt-6 pb-2 px-3 bg-white border border-brand-200 rounded-xl focus:ring-2 focus:ring-brand-100 focus:border-primary outline-none transition-all text-sm font-body appearance-none"
-              >
-                {Object.values(CommercialStatus).map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
+            <div>
+              <Select
+                label="Estado Comercial"
+                value={formData.status ?? ''}
+                onChange={(v) => setFormData((prev) => ({ ...prev, status: v as CommercialStatus }))}
+                placeholder="Estado"
+                options={Object.values(CommercialStatus).map((s) => ({ value: s, label: s }))}
+              />
             </div>
 
             <div className="md:col-span-2 relative mt-4">
@@ -235,7 +233,7 @@ const NewSchoolModal: React.FC<NewSchoolModalProps> = ({ onClose, onCreate }) =>
               className="flex-[2] py-3 rounded-2xl bg-primary text-white font-bold text-sm hover:bg-brand-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/30"
             >
               <Save size={18} />
-              Guardar Escuela
+              Guardar Lead
             </button>
           </div>
         </form>

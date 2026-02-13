@@ -335,6 +335,7 @@ export interface Resource {
   ownerUserId?: string | null;
   description?: string | null;
   aiSummary?: string | null;
+  folderId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -353,6 +354,15 @@ export interface ResourceAlias {
   resourceId: string;
   alias: string;
   createdAt: string;
+}
+
+export interface ResourceFolder {
+  id: string;
+  parentId: string | null;
+  name: string;
+  schoolId: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /** Recurso con datos de links denormalizados (para listados) */

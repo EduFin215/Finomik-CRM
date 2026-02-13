@@ -67,7 +67,7 @@ export const DealsPipelineView: React.FC<DealsPipelineViewProps> = ({ deals, ref
                   draggable
                   onDragStart={(e) => handleDragStart(e, deal)}
                   onDragEnd={handleDragEnd}
-                  onClick={() => navigate(`/crm/clients/${deal.clientId}`)}
+                  onClick={() => navigate(`/crm/leads/${deal.clientId}`)}
                   className="p-3 bg-white rounded-xl border border-brand-200/60 shadow-card cursor-grab active:cursor-grabbing hover:border-brand-300 hover:shadow-md transition-all"
                 >
                   <p className="font-medium text-primary truncate">{deal.title}</p>

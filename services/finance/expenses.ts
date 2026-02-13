@@ -98,6 +98,42 @@ export async function deleteFinanceExpense(id: string): Promise<boolean> {
   return !error;
 }
 
+export interface ExpensesSummary {
+  pendingTotal: number;
+  paidThisMonth: number;
+  recurringCount: number;
+}
+
+export async function getExpensesSummary(): Promise<ExpensesSummary> {
+  const empty: ExpensesSummary = {
+    pendingTotal: 0,
+    paidThisMonth: 0,
+    recurringCount: 0,
+  };
+  if (!isSupabaseConfigured() || !supabase) return empty;
+
+  const today = new Date();
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
+  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10);
+
+  const [pendingRes, paidRes, recurringRes] = await Promise.all([
+    supabase.from('finance_expenses').select('amount').eq('status', 'pending'),
+    supabase
+      .from('finance_expenses')
+      .select('amount')
+      .eq('status', 'paid')
+      .gte('date', firstDay)
+      .lte('date', lastDay),
+    supabase.from('finance_expenses').select('id').eq('is_recurring', true).neq('status', 'cancelled'),
+  ]);
+
+  const pendingTotal = (pendingRes.data ?? []).reduce((s, r) => s + Number(r.amount), 0);
+  const paidThisMonth = (paidRes.data ?? []).reduce((s, r) => s + Number(r.amount), 0);
+  const recurringCount = recurringRes.data?.length ?? 0;
+
+  return { pendingTotal, paidThisMonth, recurringCount };
+}
+
 /** Upcoming recurring expenses (for dashboard). */
 export async function listUpcomingRecurringExpenses(limit = 8): Promise<FinanceExpense[]> {
   if (!isSupabaseConfigured() || !supabase) return [];

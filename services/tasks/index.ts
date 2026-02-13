@@ -6,6 +6,7 @@ export {
   snoozeWorkTask,
   listMyWorkTasks,
   listAllWorkTasks,
+  listWorkTasksForEntity,
   updateWorkTaskLinks,
 } from './workTasks';
 export type { CreateWorkTaskInput, ListAllWorkTasksFilters, ListAllWorkTasksOptions, CreateTaskApiPayload } from './workTasks';

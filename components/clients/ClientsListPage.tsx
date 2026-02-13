@@ -1,9 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronRight, Filter, Search } from 'lucide-react';
+import { ChevronRight, Filter, PlusCircle, Search } from 'lucide-react';
 import { listClients, type ListClientsFilters } from '../../services/crm/clients';
 import type { ClientType, ClientStage } from '../../types';
+import { Select } from '../../modules/tasks/Select';
+import { useCRM } from '../../context/CRMContext';
 
 const TYPE_OPTIONS: { value: ClientType; label: string }[] = [
   { value: 'school', label: 'School' },
@@ -29,6 +31,7 @@ const STATUS_OPTIONS = [
 
 const ClientsListPage: React.FC = () => {
   const navigate = useNavigate();
+  const { openNewSchoolModal } = useCRM();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<ClientType | ''>(() => (searchParams.get('type') as ClientType) || '');
@@ -68,9 +71,17 @@ const ClientsListPage: React.FC = () => {
     <div className="space-y-4 sm:space-y-6 h-full flex flex-col min-h-0">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
         <div className="min-w-0">
-          <h2 className="text-xl sm:text-2xl font-title text-primary">Clients</h2>
-          <p className="text-brand-500 font-body text-sm">Search and filter your clients.</p>
+          <h2 className="text-xl sm:text-2xl font-title text-primary">Leads</h2>
+          <p className="text-brand-500 font-body text-sm">Search and filter your leads.</p>
         </div>
+        <button
+          type="button"
+          onClick={() => openNewSchoolModal()}
+          className="flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-4 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-primary/20 shrink-0"
+        >
+          <PlusCircle size={20} />
+          <span>Nuevo Lead</span>
+        </button>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 shrink-0">
@@ -88,48 +99,39 @@ const ClientsListPage: React.FC = () => {
           <span className="text-brand-500 text-xs font-bold uppercase flex items-center gap-1">
             <Filter size={12} /> Filters
           </span>
-          <select
+          <Select
             value={typeFilter}
-            onChange={(e) => {
-              const v = (e.target.value || '') as ClientType | '';
-              setTypeFilter(v);
-              setSearchParams((p) => { const n = new URLSearchParams(p); if (v) n.set('type', v); else n.delete('type'); return n; });
+            onChange={(v) => {
+              const val = (v || '') as ClientType | '';
+              setTypeFilter(val);
+              setSearchParams((p) => { const n = new URLSearchParams(p); if (val) n.set('type', val); else n.delete('type'); return n; });
             }}
-            className="rounded-xl border border-brand-200/60 bg-white px-3 py-2 text-sm font-body text-primary"
-          >
-            <option value="">All types</option>
-            {TYPE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-          <select
+            placeholder="All types"
+            options={TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            className="min-w-0"
+          />
+          <Select
             value={stageFilter}
-            onChange={(e) => {
-              const v = (e.target.value || '') as ClientStage | '';
-              setStageFilter(v);
-              setSearchParams((p) => { const n = new URLSearchParams(p); if (v) n.set('stage', v); else n.delete('stage'); return n; });
+            onChange={(v) => {
+              const val = (v || '') as ClientStage | '';
+              setStageFilter(val);
+              setSearchParams((p) => { const n = new URLSearchParams(p); if (val) n.set('stage', val); else n.delete('stage'); return n; });
             }}
-            className="rounded-xl border border-brand-200/60 bg-white px-3 py-2 text-sm font-body text-primary"
-          >
-            <option value="">All stages</option>
-            {STAGE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-          <select
+            placeholder="All stages"
+            options={STAGE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            className="min-w-0"
+          />
+          <Select
             value={statusFilter}
-            onChange={(e) => {
-              const v = (e.target.value || '') as 'active' | 'archived' | '';
-              setStatusFilter(v);
-              setSearchParams((p) => { const n = new URLSearchParams(p); if (v) n.set('status', v); else n.delete('status'); return n; });
+            onChange={(v) => {
+              const val = (v || '') as 'active' | 'archived' | '';
+              setStatusFilter(val);
+              setSearchParams((p) => { const n = new URLSearchParams(p); if (val) n.set('status', val); else n.delete('status'); return n; });
             }}
-            className="rounded-xl border border-brand-200/60 bg-white px-3 py-2 text-sm font-body text-primary"
-          >
-            <option value="">All statuses</option>
-            {STATUS_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
+            placeholder="All statuses"
+            options={STATUS_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            className="min-w-0"
+          />
         </div>
       </div>
 
@@ -157,7 +159,7 @@ const ClientsListPage: React.FC = () => {
                   <tr
                     key={client.id}
                     className="group hover:bg-brand-100/30 transition-colors cursor-pointer"
-                    onClick={() => navigate(`/crm/clients/${client.id}`)}
+                    onClick={() => navigate(`/crm/leads/${client.id}`)}
                   >
                     <td className="py-3 px-3 sm:px-4">
                       <span className="font-bold text-primary group-hover:text-brand-600 truncate block">{client.name}</span>
@@ -177,7 +179,7 @@ const ClientsListPage: React.FC = () => {
                     <td className="py-3 px-3 sm:px-4 text-right">
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); navigate(`/crm/clients/${client.id}`); }}
+                        onClick={(e) => { e.stopPropagation(); navigate(`/crm/leads/${client.id}`); }}
                         className="p-2 text-brand-500 hover:bg-brand-100/50 hover:text-primary rounded-xl transition-colors"
                       >
                         <ChevronRight size={18} />
@@ -192,8 +194,8 @@ const ClientsListPage: React.FC = () => {
         {!isLoading && clients.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-brand-400">
             <Filter size={48} className="mb-4 opacity-20" />
-            <p className="text-lg font-subtitle text-primary">No clients found</p>
-            <p className="text-sm font-body">Adjust filters or add a new client.</p>
+            <p className="text-lg font-subtitle text-primary">No leads found</p>
+            <p className="text-sm font-body">Adjust filters or add a new lead.</p>
           </div>
         )}
       </div>

@@ -267,3 +267,84 @@ export async function getForecastProjection(days = 90): Promise<ForecastDay[]> {
   }
   return result;
 }
+
+export interface PayableOwingSummary {
+  invoicesComingDue: number;
+  invoicesOverdue1_30: number;
+  invoicesOverdue31_60: number;
+  expensesComingDue: number;
+  expensesOverdue1_30: number;
+  expensesOverdue31_60: number;
+}
+
+export async function getPayableOwingSummary(): Promise<PayableOwingSummary> {
+  const empty: PayableOwingSummary = {
+    invoicesComingDue: 0,
+    invoicesOverdue1_30: 0,
+    invoicesOverdue31_60: 0,
+    expensesComingDue: 0,
+    expensesOverdue1_30: 0,
+    expensesOverdue31_60: 0,
+  };
+  if (!isSupabaseConfigured() || !supabase) return empty;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const todayDate = new Date(today);
+  const in30 = new Date(todayDate);
+  in30.setDate(in30.getDate() + 30);
+  const in30Str = in30.toISOString().slice(0, 10);
+  const minus30 = new Date(todayDate);
+  minus30.setDate(minus30.getDate() - 30);
+  const minus30Str = minus30.toISOString().slice(0, 10);
+  const minus60 = new Date(todayDate);
+  minus60.setDate(minus60.getDate() - 60);
+  const minus60Str = minus60.toISOString().slice(0, 10);
+
+  const { data: invData } = await supabase
+    .from('finance_invoices')
+    .select('amount, due_date')
+    .in('status', ['sent', 'overdue'])
+    .not('due_date', 'is', null);
+  const { data: expData } = await supabase
+    .from('finance_expenses')
+    .select('amount, due_date')
+    .eq('status', 'pending')
+    .not('due_date', 'is', null);
+
+  let invoicesComingDue = 0,
+    invoicesOverdue1_30 = 0,
+    invoicesOverdue31_60 = 0;
+  for (const r of invData ?? []) {
+    const d = String(r.due_date);
+    const amt = Number(r.amount);
+    if (d > today) {
+      if (d <= in30Str) invoicesComingDue += amt;
+    } else {
+      if (d >= minus30Str) invoicesOverdue1_30 += amt;
+      else if (d >= minus60Str) invoicesOverdue31_60 += amt;
+    }
+  }
+
+  let expensesComingDue = 0,
+    expensesOverdue1_30 = 0,
+    expensesOverdue31_60 = 0;
+  for (const r of expData ?? []) {
+    const d = String(r.due_date);
+    const amt = Number(r.amount);
+    if (d > today) {
+      if (d <= in30Str) expensesComingDue += amt;
+    } else {
+      if (d >= minus30Str) expensesOverdue1_30 += amt;
+      else if (d >= minus60Str) expensesOverdue31_60 += amt;
+    }
+  }
+
+  return {
+    invoicesComingDue,
+    invoicesOverdue1_30,
+    invoicesOverdue31_60,
+    expensesComingDue,
+    expensesOverdue1_30,
+    expensesOverdue31_60,
+  };
+}

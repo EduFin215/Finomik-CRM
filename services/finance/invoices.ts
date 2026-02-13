@@ -24,6 +24,7 @@ export interface ListFinanceInvoicesParams {
   status?: FinanceInvoice['status'] | FinanceInvoice['status'][];
   issueDateFrom?: string;
   issueDateTo?: string;
+  contractIds?: string[];
 }
 
 export async function listFinanceInvoices(params?: ListFinanceInvoicesParams): Promise<FinanceInvoice[]> {
@@ -41,6 +42,9 @@ export async function listFinanceInvoices(params?: ListFinanceInvoicesParams): P
   }
   if (params?.issueDateFrom) query = query.gte('issue_date', params.issueDateFrom);
   if (params?.issueDateTo) query = query.lte('issue_date', params.issueDateTo);
+  if (params?.contractIds != null && params.contractIds.length > 0) {
+    query = query.in('contract_id', params.contractIds);
+  }
   const { data, error } = await query;
   if (error || !data) return [];
   return (data as Record<string, unknown>[]).map((row) => {
@@ -110,6 +114,39 @@ export async function deleteFinanceInvoice(id: string): Promise<boolean> {
   if (!isSupabaseConfigured() || !supabase) return false;
   const { error } = await supabase.from('finance_invoices').delete().eq('id', id);
   return !error;
+}
+
+export interface IncomeSummary {
+  overdueAmount: number;
+  unpaidTotal: number;
+  draftTotal: number;
+  dueTodayCount: number;
+}
+
+export async function getIncomeSummary(): Promise<IncomeSummary> {
+  const empty: IncomeSummary = {
+    overdueAmount: 0,
+    unpaidTotal: 0,
+    draftTotal: 0,
+    dueTodayCount: 0,
+  };
+  if (!isSupabaseConfigured() || !supabase) return empty;
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  const [overdueRes, unpaidRes, draftRes, dueTodayRes] = await Promise.all([
+    supabase.from('finance_invoices').select('amount').eq('status', 'overdue'),
+    supabase.from('finance_invoices').select('amount').in('status', ['sent', 'overdue']),
+    supabase.from('finance_invoices').select('amount').eq('status', 'draft'),
+    supabase.from('finance_invoices').select('id').eq('due_date', today).in('status', ['sent', 'overdue']),
+  ]);
+
+  const overdueAmount = (overdueRes.data ?? []).reduce((s, r) => s + Number(r.amount), 0);
+  const unpaidTotal = (unpaidRes.data ?? []).reduce((s, r) => s + Number(r.amount), 0);
+  const draftTotal = (draftRes.data ?? []).reduce((s, r) => s + Number(r.amount), 0);
+  const dueTodayCount = dueTodayRes.data?.length ?? 0;
+
+  return { overdueAmount, unpaidTotal, draftTotal, dueTodayCount };
 }
 
 /** Invoices due or overdue (for dashboard list). */

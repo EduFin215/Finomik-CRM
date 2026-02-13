@@ -12,7 +12,7 @@ export const TOOLS: Tool[] = [
     name: 'CRM',
     path: '/crm',
     available: true,
-    description: 'Clientes, contactos, deals y proyectos.',
+    description: 'Leads, contactos, deals y proyectos.',
   },
   {
     id: 'tasks',

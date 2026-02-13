@@ -17,6 +17,8 @@ import {
 import { getResourcesByEntity, createResource, linkExistingResource } from '../services/resources';
 import { ResourceFormModal } from '../modules/resources/ResourceFormModal';
 import { ResourceLinkModal } from '../modules/resources/ResourceLinkModal';
+import { DateTimePicker } from '../modules/tasks/DateTimePicker';
+import { Select } from '../modules/tasks/Select';
 import type { ResourceFormState } from '../modules/resources/ResourceFormModal';
 import type { ResourceWithLinks } from '../types';
 
@@ -354,20 +356,14 @@ const SchoolDetail: React.FC<SchoolDetailProps> = ({ school, onClose, onUpdate, 
                 </div>
 
                 {isSupabaseConfigured() && profiles.length > 0 && (
-                  <div>
-                    <label className="text-[10px] font-bold text-brand-400 uppercase block mb-2">Asignado a</label>
-                    <select
+                  <div className="max-w-xs">
+                    <Select
+                      label="Asignado a"
                       value={school.assignedToId ?? ''}
-                      onChange={(e) => onUpdate({ ...school, assignedToId: e.target.value || null })}
-                      className="w-full max-w-xs p-2 rounded-lg border border-brand-200 text-sm font-body text-primary focus:ring-2 focus:ring-brand-100 outline-none"
-                    >
-                      <option value="">Sin asignar</option>
-                      {profiles.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.displayName || p.email || p.id.slice(0, 8)}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(v) => onUpdate({ ...school, assignedToId: v || null })}
+                      placeholder="Sin asignar"
+                      options={profiles.map((p) => ({ value: p.id, label: p.displayName || p.email || p.id.slice(0, 8) }))}
+                    />
                   </div>
                 )}
               </div>
@@ -519,7 +515,7 @@ const SchoolDetail: React.FC<SchoolDetailProps> = ({ school, onClose, onUpdate, 
                 <div>
                   <h5 className="text-[10px] font-bold text-brand-500 uppercase mb-2">All linked resources</h5>
                   {resourcesByEntity.others.length === 0 && resourcesByEntity.primary.length === 0 ? (
-                    <p className="text-brand-500 text-xs font-body">No hay recursos vinculados a este cliente.</p>
+                    <p className="text-brand-500 text-xs font-body">No hay recursos vinculados a este lead.</p>
                   ) : (
                     <div className="space-y-2">
                       {resourcesByEntity.others.map((r) => (
@@ -579,16 +575,18 @@ const SchoolDetail: React.FC<SchoolDetailProps> = ({ school, onClose, onUpdate, 
               <div className="bg-white p-4 rounded-xl border border-brand-200">
                 <div className="flex flex-col gap-3">
                   <div className="flex gap-2">
-                    <select
+                    <Select
                       value={activityType}
-                      onChange={(e) => setActivityType(e.target.value as Activity['type'])}
-                      className="bg-brand-100 border-none text-xs font-bold text-primary px-3 py-2 rounded-lg focus:ring-2 focus:ring-brand-100 outline-none"
-                    >
-                      <option value="Nota">Nota</option>
-                      <option value="Llamada">Llamada</option>
-                      <option value="Email">Email</option>
-                      <option value="Reunión">Reunión</option>
-                    </select>
+                      onChange={(v) => setActivityType(v as Activity['type'])}
+                      placeholder="Tipo"
+                      options={[
+                        { value: 'Nota', label: 'Nota' },
+                        { value: 'Llamada', label: 'Llamada' },
+                        { value: 'Email', label: 'Email' },
+                        { value: 'Reunión', label: 'Reunión' },
+                      ]}
+                      className="min-w-0"
+                    />
                   </div>
                   <div className="flex items-center gap-3">
                     <input
@@ -691,11 +689,12 @@ const SchoolDetail: React.FC<SchoolDetailProps> = ({ school, onClose, onUpdate, 
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <input
-                      type="date"
-                      value={followUpData.date}
-                      onChange={(e) => setFollowUpData({ ...followUpData, date: e.target.value })}
-                      className="w-full p-2 bg-white border border-brand-200 rounded-lg text-sm font-body text-primary focus:ring-2 focus:ring-brand-100 outline-none"
+                    <DateTimePicker
+                      dateValue={followUpData.date}
+                      onChangeDate={(date) => setFollowUpData({ ...followUpData, date })}
+                      showTime={false}
+                      placeholder="Fecha"
+                      className="min-w-0"
                     />
                     <input
                       type="time"
@@ -727,14 +726,13 @@ const SchoolDetail: React.FC<SchoolDetailProps> = ({ school, onClose, onUpdate, 
                     </div>
                   </div>
                             <div>
-                                <label className="text-[10px] font-bold text-brand-500 uppercase block mb-1">Prioridad</label>
-                                <select
+                                <Select
+                                    label="Prioridad"
                                     value={followUpData.priority}
-                                    onChange={(e) => setFollowUpData({ ...followUpData, priority: e.target.value as TaskPriority })}
-                                    className="w-full p-2 bg-brand-100/30 border border-brand-200 rounded-lg text-sm font-body text-primary focus:ring-2 focus:ring-brand-100 outline-none h-[38px]"
-                                >
-                                    {Object.values(TaskPriority).map(p => <option key={p} value={p}>{p}</option>)}
-                                </select>
+                                    onChange={(v) => setFollowUpData({ ...followUpData, priority: v as TaskPriority })}
+                                    placeholder="Prioridad"
+                                    options={Object.values(TaskPriority).map((p) => ({ value: p, label: p }))}
+                                />
                             </div>
                         </div>
                         {isGoogleCalendarConfigured() && (
@@ -778,6 +776,7 @@ const SchoolDetail: React.FC<SchoolDetailProps> = ({ school, onClose, onUpdate, 
                 status: form.status,
                 version: form.version || null,
                 description: form.description || null,
+                folderId: form.folderId || null,
                 linkTo: { entityType: 'client', entityId: school.id },
                 isPrimary: form.isPrimary,
               });

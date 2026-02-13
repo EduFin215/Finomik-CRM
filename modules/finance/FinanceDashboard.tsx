@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import {
   LineChart,
   Line,
@@ -17,12 +18,20 @@ import {
   getIncomeExpensesByMonth,
   getExpensesByCategory,
   getForecastProjection,
+  getPayableOwingSummary,
   listFinanceInvoicesDue,
   listUpcomingRecurringExpenses,
   getFinanceSettings,
 } from '../../services/finance';
+import { Select } from '../tasks/Select';
 import { formatCurrency } from './formatCurrency';
 import { COLORS } from '../../constants';
+
+const PERIOD_OPTIONS = [
+  { value: '1', label: '1m' },
+  { value: '3', label: '3m' },
+  { value: '6', label: '6m' },
+];
 
 const CHART_COLORS = [COLORS.brand[300], COLORS.brand[400], COLORS.brand[500], COLORS.brand[600], COLORS.primary];
 
@@ -53,6 +62,8 @@ function KPICard({
 }
 
 export default function FinanceDashboard() {
+  const [periodMonths, setPeriodMonths] = useState('3');
+
   const { data: settings } = useQuery({
     queryKey: ['finance-settings'],
     queryFn: () => getFinanceSettings(),
@@ -62,13 +73,18 @@ export default function FinanceDashboard() {
     queryFn: () => getFinanceDashboardKpis(settings?.startingCash ?? null),
     enabled: settings !== undefined,
   });
+  const { data: payableOwing } = useQuery({
+    queryKey: ['finance-payable-owing'],
+    queryFn: () => getPayableOwingSummary(),
+  });
+  const monthsBack = parseInt(periodMonths, 10) || 3;
   const { data: incomeExpensesByMonth = [] } = useQuery({
-    queryKey: ['finance-income-expenses-by-month'],
-    queryFn: () => getIncomeExpensesByMonth(12),
+    queryKey: ['finance-income-expenses-by-month', monthsBack],
+    queryFn: () => getIncomeExpensesByMonth(monthsBack),
   });
   const { data: expensesByCategory = [] } = useQuery({
-    queryKey: ['finance-expenses-by-category'],
-    queryFn: () => getExpensesByCategory(3),
+    queryKey: ['finance-expenses-by-category', monthsBack],
+    queryFn: () => getExpensesByCategory(monthsBack),
   });
   const { data: forecastData = [] } = useQuery({
     queryKey: ['finance-forecast-projection'],
@@ -93,6 +109,16 @@ export default function FinanceDashboard() {
     incomePrevMonth: 0,
     expensesPrevMonth: 0,
   };
+  const po = payableOwing ?? {
+    invoicesComingDue: 0,
+    invoicesOverdue1_30: 0,
+    invoicesOverdue31_60: 0,
+    expensesComingDue: 0,
+    expensesOverdue1_30: 0,
+    expensesOverdue31_60: 0,
+  };
+  const invoicesDueTotal = po.invoicesComingDue + po.invoicesOverdue1_30 + po.invoicesOverdue31_60;
+  const billsDueTotal = po.expensesComingDue + po.expensesOverdue1_30 + po.expensesOverdue31_60;
 
   return (
     <div className="p-6 sm:p-8 max-w-6xl mx-auto bg-brand-100/20 min-h-full">
@@ -137,7 +163,8 @@ export default function FinanceDashboard() {
             {k.cashPosition != null && (
               <KPICard title="Cash Position" value={formatCurrency(k.cashPosition)} subtitle="Current" />
             )}
-            <KPICard title="Forecast (Next 30 Days)" value={formatCurrency(k.forecastNext30Days)} />
+            <KPICard title="Invoices due" value={formatCurrency(invoicesDueTotal)} subtitle="To collect" />
+            <KPICard title="Bills due" value={formatCurrency(billsDueTotal)} subtitle="To pay" />
             <KPICard
               title="Burn Rate"
               value={formatCurrency(k.burnRateLast3Months)}
@@ -149,6 +176,15 @@ export default function FinanceDashboard() {
 
       {/* Section 2 — Charts */}
       <section className="mb-10 space-y-8">
+        <div className="flex justify-end">
+          <Select
+            value={periodMonths}
+            onChange={setPeriodMonths}
+            options={PERIOD_OPTIONS}
+            placeholder="Period"
+            className="w-24"
+          />
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="bg-white rounded-2xl border border-brand-200/60 shadow-card p-6 min-w-0">
             <h2 className="text-lg font-subtitle text-primary mb-4">Income vs Expenses (monthly)</h2>
@@ -240,7 +276,67 @@ export default function FinanceDashboard() {
         )}
       </section>
 
-      {/* Section 3 — Actionable lists */}
+      {/* Section 3 — Payable & Owing */}
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+        <div className="bg-white rounded-2xl border border-brand-200/60 shadow-card p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-subtitle text-primary">Invoices payable to you</h2>
+            <Link
+              to="/finance/income?filter=overdue"
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              View all
+            </Link>
+          </div>
+          <ul className="space-y-2 text-sm">
+            <li className="flex justify-between">
+              <span className="text-brand-500 font-body">Coming due (next 30 days)</span>
+              <span className="font-subtitle text-primary">{formatCurrency(po.invoicesComingDue)}</span>
+            </li>
+            <li className="flex justify-between">
+              <span className="text-brand-500 font-body">1–30 days overdue</span>
+              <span className="font-subtitle text-primary">{formatCurrency(po.invoicesOverdue1_30)}</span>
+            </li>
+            <li className="flex justify-between">
+              <span className="text-brand-500 font-body">31–60 days overdue</span>
+              <span className="font-subtitle text-primary">{formatCurrency(po.invoicesOverdue31_60)}</span>
+            </li>
+          </ul>
+          {po.invoicesOverdue1_30 === 0 && po.invoicesOverdue31_60 === 0 && (
+            <p className="text-brand-500 text-xs mt-2">No overdue invoices.</p>
+          )}
+        </div>
+        <div className="bg-white rounded-2xl border border-brand-200/60 shadow-card p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-subtitle text-primary">Bills you owe</h2>
+            <Link
+              to="/finance/expenses?filter=overdue"
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              View all
+            </Link>
+          </div>
+          <ul className="space-y-2 text-sm">
+            <li className="flex justify-between">
+              <span className="text-brand-500 font-body">Coming due (next 30 days)</span>
+              <span className="font-subtitle text-primary">{formatCurrency(po.expensesComingDue)}</span>
+            </li>
+            <li className="flex justify-between">
+              <span className="text-brand-500 font-body">1–30 days overdue</span>
+              <span className="font-subtitle text-primary">{formatCurrency(po.expensesOverdue1_30)}</span>
+            </li>
+            <li className="flex justify-between">
+              <span className="text-brand-500 font-body">31–60 days overdue</span>
+              <span className="font-subtitle text-primary">{formatCurrency(po.expensesOverdue31_60)}</span>
+            </li>
+          </ul>
+          {po.expensesOverdue1_30 === 0 && po.expensesOverdue31_60 === 0 && (
+            <p className="text-brand-500 text-xs mt-2">No overdue bills.</p>
+          )}
+        </div>
+      </section>
+
+      {/* Section 4 — Actionable lists */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="bg-white rounded-2xl border border-brand-200/60 shadow-card p-6">
           <h2 className="text-lg font-subtitle text-primary mb-4">Invoices Due / Overdue</h2>

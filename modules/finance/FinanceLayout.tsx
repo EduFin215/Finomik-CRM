@@ -1,59 +1,51 @@
-import React from 'react';
-import { Outlet, NavLink } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Outlet } from 'react-router-dom';
+import {
+  LayoutDashboard,
+  TrendingUp,
+  TrendingDown,
+  LineChart,
+  Menu,
+} from 'lucide-react';
 import { ToolLayout } from '../../components/layout/ToolLayout';
+import { SidebarNav } from '../../components/layout/SidebarNav';
 import { TOOLS } from '../../config/tools';
 
 const currentTool = TOOLS.find((t) => t.id === 'finance')!;
 
 export default function FinanceLayout() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <ToolLayout currentTool={currentTool}>
-      <div className="flex flex-col h-full overflow-hidden">
-        <div className="shrink-0 flex items-center gap-1 border-b border-brand-200/60 bg-white px-4 py-2">
-          <NavLink
-            to="/finance/dashboard"
-            className={({ isActive }) =>
-              `rounded-xl px-4 py-3 text-sm font-bold transition-colors ${
-                isActive ? 'bg-primary text-white' : 'text-brand-600 hover:bg-brand-100/50'
-              }`
-            }
-          >
-            Dashboard
-          </NavLink>
-          <NavLink
-            to="/finance/income"
-            className={({ isActive }) =>
-              `rounded-xl px-4 py-3 text-sm font-bold transition-colors ${
-                isActive ? 'bg-primary text-white' : 'text-brand-600 hover:bg-brand-100/50'
-              }`
-            }
-          >
-            Income
-          </NavLink>
-          <NavLink
-            to="/finance/expenses"
-            className={({ isActive }) =>
-              `rounded-xl px-4 py-3 text-sm font-bold transition-colors ${
-                isActive ? 'bg-primary text-white' : 'text-brand-600 hover:bg-brand-100/50'
-              }`
-            }
-          >
-            Expenses
-          </NavLink>
-          <NavLink
-            to="/finance/forecast"
-            className={({ isActive }) =>
-              `rounded-xl px-4 py-3 text-sm font-bold transition-colors ${
-                isActive ? 'bg-primary text-white' : 'text-brand-600 hover:bg-brand-100/50'
-              }`
-            }
-          >
-            Forecast
-          </NavLink>
-        </div>
-        <div className="flex-1 overflow-auto min-h-0">
-          <Outlet />
-        </div>
+      <div className="flex h-full w-full overflow-hidden bg-white">
+        <SidebarNav
+          variant="dark"
+          items={[
+            { to: '/finance/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+            { to: '/finance/income', label: 'Income', icon: TrendingUp },
+            { to: '/finance/expenses', label: 'Expenses', icon: TrendingDown },
+            { to: '/finance/forecast', label: 'Forecast', icon: LineChart },
+          ]}
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          onNavigate={() => setSidebarOpen(false)}
+        />
+        <main className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-brand-100 lg:hidden shrink-0">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 text-brand-600 hover:bg-brand-100/50 rounded-xl shrink-0"
+              aria-label="Abrir menú"
+            >
+              <Menu size={24} />
+            </button>
+          </div>
+          <div className="flex-1 overflow-auto min-h-0 p-4 sm:p-6 lg:p-8">
+            <Outlet />
+          </div>
+        </main>
       </div>
     </ToolLayout>
   );

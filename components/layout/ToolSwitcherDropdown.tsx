@@ -26,7 +26,7 @@ export function ToolSwitcherDropdown({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex items-center gap-2 px-3 py-2 rounded-xl font-bold text-brand-600 hover:bg-brand-100/50 hover:text-primary transition-colors"
+        className="flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-brand-600 hover:bg-brand-100/50 hover:text-primary transition-colors"
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-label="Cambiar de herramienta"

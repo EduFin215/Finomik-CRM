@@ -21,8 +21,6 @@ import DealsListPage from './components/deals/DealsListPage';
 import ProjectsListPage from './components/projects/ProjectsListPage';
 import ResourcesView from './modules/resources/ResourcesView';
 import TasksView from './modules/tasks/TasksView';
-import MyTasksView from './modules/tasks/MyTasksView';
-import AllTasksView from './modules/tasks/AllTasksView';
 import ReportingView from './modules/reporting/ReportingView';
 import IntegrationsView from './modules/integrations/IntegrationsView';
 import GlobalSettingsView from './modules/settings/SettingsView';
@@ -66,20 +64,18 @@ const App: React.FC = () => {
         <Route path="crm" element={<CRMLayout />}>
           <Route index element={<Navigate to="/crm/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="clients" element={<ClientsListPage />} />
-          <Route path="clients/:id" element={<ClientDetailPage />} />
+          <Route path="leads" element={<ClientsListPage />} />
+          <Route path="leads/:id" element={<ClientDetailPage />} />
           <Route path="deals" element={<DealsListPage />} />
           <Route path="projects" element={<ProjectsListPage />} />
           <Route path="pipeline" element={<PipelineView />} />
-          <Route path="schools" element={<Navigate to="/crm/clients" replace />} />
+          <Route path="schools" element={<Navigate to="/crm/leads" replace />} />
           <Route path="calendar" element={<CalendarView />} />
           <Route path="import" element={<Importer />} />
           <Route path="settings" element={<SettingsView />} />
         </Route>
-        <Route path="tasks" element={<TasksView />}>
-          <Route index element={<MyTasksView />} />
-          <Route path="all" element={<AllTasksView />} />
-        </Route>
+        <Route path="tasks" element={<TasksView />} />
+        <Route path="tasks/all" element={<TasksView />} />
         <Route path="resources" element={<ResourcesView />} />
         <Route path="finance" element={<FinanceLayout />}>
           <Route index element={<Navigate to="/finance/dashboard" replace />} />

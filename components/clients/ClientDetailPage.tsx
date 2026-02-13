@@ -16,14 +16,25 @@ import {
   Link2,
   CheckSquare,
   ChevronDown,
+  ExternalLink,
+  Copy,
 } from 'lucide-react';
 import { getClientById } from '../../services/crm/clients';
 import { listClientContacts, createClientContact } from '../../services/crm/contacts';
 import { listClientDeals, createDeal } from '../../services/crm/deals';
 import { listClientProjects, createProject } from '../../services/crm/projects';
+import { getResourcesForClient } from '../../services/resources';
+import { listWorkTasksForEntity } from '../../services/tasks';
+import { isSupabaseConfigured } from '../../services/supabase';
+import type { ResourceWithLinks } from '../../types';
+import type { WorkTask } from '../../types';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../hooks/useAuth';
 import TaskFormModal from '../../modules/tasks/TaskFormModal';
+import TaskDetailDrawer from '../../modules/tasks/TaskDetailDrawer';
+import { formatTaskDateTime } from '../../modules/tasks/formatTaskDate';
+import { Link as RouterLink } from 'react-router-dom';
+import { Clock, CheckCircle, Circle } from 'lucide-react';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: FileText },
@@ -42,12 +53,19 @@ const ClientDetailPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]['id']>('overview');
   const [addDropdownOpen, setAddDropdownOpen] = useState(false);
   const [addTaskModalOpen, setAddTaskModalOpen] = useState(false);
+  const [detailTask, setDetailTask] = useState<WorkTask | null>(null);
   const { user } = useAuth();
 
   const { data: client, isLoading } = useQuery({
     queryKey: ['client', id],
     queryFn: () => getClientById(id!),
     enabled: !!id,
+  });
+
+  const { data: clientWorkTasks = [] } = useQuery({
+    queryKey: ['work-tasks', 'client', id],
+    queryFn: () => listWorkTasksForEntity('client', id!),
+    enabled: !!id && isSupabaseConfigured(),
   });
 
   const { data: contacts = [] } = useQuery({
@@ -68,11 +86,20 @@ const ClientDetailPage: React.FC = () => {
     enabled: !!id,
   });
 
+  const { data: clientResources = [] } = useQuery({
+    queryKey: ['client-resources', id],
+    queryFn: () => getResourcesForClient(id!),
+    enabled: !!id,
+  });
+
   const refetch = () => {
     queryClient.invalidateQueries({ queryKey: ['client', id] });
     queryClient.invalidateQueries({ queryKey: ['client-contacts', id] });
     queryClient.invalidateQueries({ queryKey: ['client-deals', id] });
     queryClient.invalidateQueries({ queryKey: ['client-projects', id] });
+    queryClient.invalidateQueries({ queryKey: ['client-resources', id] });
+    queryClient.invalidateQueries({ queryKey: ['work-tasks', 'client', id] });
+    queryClient.invalidateQueries({ queryKey: ['work-tasks'], exact: false });
   };
 
   const handleAddContact = async () => {
@@ -122,7 +149,7 @@ const ClientDetailPage: React.FC = () => {
     new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
 
   if (!id) {
-    navigate('/crm/clients');
+    navigate('/crm/leads');
     return null;
   }
   if (isLoading || !client) {
@@ -138,7 +165,7 @@ const ClientDetailPage: React.FC = () => {
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={() => navigate('/crm/clients')}
+          onClick={() => navigate('/crm/leads')}
           className="p-2 text-brand-500 hover:bg-brand-100 rounded-lg"
         >
           <ArrowLeft size={20} />
@@ -168,18 +195,18 @@ const ClientDetailPage: React.FC = () => {
             </button>
             {addDropdownOpen && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setAddDropdownOpen(false)} />
-                <div className="absolute right-0 top-full mt-1 py-1 bg-white border border-brand-200 rounded-lg shadow-lg z-20 min-w-[140px]">
-                  <button type="button" onClick={handleAddContact} className="w-full px-4 py-2 text-left text-sm hover:bg-brand-100">
+                <div className="fixed inset-0 z-[55]" aria-hidden onClick={() => setAddDropdownOpen(false)} />
+                <div className="absolute right-0 top-full mt-2 z-[60] min-w-[140px] bg-white/95 backdrop-blur-sm rounded-xl border border-brand-200/60 shadow-dropdown py-1">
+                  <button type="button" onClick={handleAddContact} className="w-full px-4 py-3 text-left text-sm font-bold text-brand-600 hover:bg-brand-100/50 transition-colors">
                     Contact
                   </button>
-                  <button type="button" onClick={handleAddDeal} className="w-full px-4 py-2 text-left text-sm hover:bg-brand-100">
+                  <button type="button" onClick={handleAddDeal} className="w-full px-4 py-3 text-left text-sm font-bold text-brand-600 hover:bg-brand-100/50 transition-colors">
                     Deal
                   </button>
-                  <button type="button" onClick={handleAddProject} className="w-full px-4 py-2 text-left text-sm hover:bg-brand-100">
+                  <button type="button" onClick={handleAddProject} className="w-full px-4 py-3 text-left text-sm font-bold text-brand-600 hover:bg-brand-100/50 transition-colors">
                     Project
                   </button>
-                  <button type="button" onClick={handleAddTask} className="w-full px-4 py-2 text-left text-sm hover:bg-brand-100">
+                  <button type="button" onClick={handleAddTask} className="w-full px-4 py-3 text-left text-sm font-bold text-brand-600 hover:bg-brand-100/50 transition-colors">
                     Task
                   </button>
                 </div>
@@ -329,20 +356,80 @@ const ClientDetailPage: React.FC = () => {
         )}
 
         {activeTab === 'resources' && (
-          <p className="text-brand-500 text-sm">Linked resources from the Resources tool will appear here (read-only).</p>
+          <div className="space-y-3">
+            {clientResources.length === 0 ? (
+              <p className="text-brand-500 text-sm">No hay recursos. Añade recursos en la herramienta Resources y asígnalos a la carpeta de este lead, o vincúlalos explícitamente al lead.</p>
+            ) : (
+              <ul className="space-y-2">
+                {clientResources.map((resource) => (
+                  <li key={resource.id} className="bg-white p-4 rounded-xl border border-brand-200 flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-primary truncate">{resource.title}</p>
+                      <p className="text-[10px] text-brand-500">{resource.type} · {resource.status}</p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => window.open(resource.url, '_blank')}
+                        className="p-1.5 rounded-lg text-brand-500 hover:bg-brand-100"
+                        title="Abrir"
+                      >
+                        <ExternalLink size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => navigator.clipboard.writeText(resource.url)}
+                        className="p-1.5 rounded-lg text-brand-500 hover:bg-brand-100"
+                        title="Copiar enlace"
+                      >
+                        <Copy size={16} />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
 
         {activeTab === 'tasks' && (
-          <div className="space-y-2">
-            {client.tasks.length === 0 ? (
-              <p className="text-brand-500 text-sm">No tasks linked. Tasks from the Tasks tool will appear here (read-only).</p>
+          <div className="space-y-3">
+            <p className="text-xs text-brand-500">
+              Tareas vinculadas a este lead (creadas en Tasks con lead asignado o desde aquí con «Add → Task»).
+            </p>
+            {clientWorkTasks.length === 0 ? (
+              <p className="text-brand-500 text-sm py-4">No hay tareas vinculadas. Añade una con el botón Add → Task o asígnalas desde la herramienta Tasks.</p>
             ) : (
               <ul className="divide-y divide-brand-100">
-                {client.tasks.map((t) => (
-                  <li key={t.id} className="py-2 flex items-center gap-2">
-                    <span className={t.completed ? 'text-brand-400 line-through' : 'font-medium text-primary'}>{t.title}</span>
-                    <span className="text-xs text-brand-500">{t.dueDate}{t.dueTime ? ` ${t.dueTime}` : ''}</span>
-                    {t.completed && <span className="text-xs text-green-600">Done</span>}
+                {clientWorkTasks.map((t) => (
+                  <li key={t.id} className="py-3 flex items-start gap-3">
+                    <span className="shrink-0 mt-0.5">
+                      {t.status === 'done' ? (
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <Circle className="w-4 h-4 text-brand-400" />
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setDetailTask(t)}
+                      className="text-left flex-1 min-w-0"
+                    >
+                      <span className={`font-medium text-primary block ${t.status === 'done' ? 'line-through text-brand-500' : ''}`}>
+                        {t.title}
+                      </span>
+                      <span className="text-xs text-brand-500 flex items-center gap-1 mt-0.5">
+                        <Clock size={12} />
+                        {t.dueAt ? formatTaskDateTime(t.dueAt) : 'Sin fecha'}
+                        {t.status === 'done' && <span className="text-green-600">· Completada</span>}
+                      </span>
+                    </button>
+                    <RouterLink
+                      to="/tasks"
+                      className="shrink-0 text-xs font-semibold text-brand-600 hover:text-primary"
+                    >
+                      Abrir en Tasks
+                    </RouterLink>
                   </li>
                 ))}
               </ul>
@@ -358,9 +445,22 @@ const ClientDetailPage: React.FC = () => {
           presetLink={{ entityType: 'client', entityId: id }}
           onClose={() => setAddTaskModalOpen(false)}
           onSaved={() => {
+            refetch();
             setAddTaskModalOpen(false);
-            toast.toast.success('Task created');
+            toast.toast.success('Tarea creada');
           }}
+        />
+      )}
+
+      {detailTask && (
+        <TaskDetailDrawer
+          task={detailTask}
+          onClose={() => setDetailTask(null)}
+          onEdit={() => {
+            setDetailTask(null);
+            navigate(`/tasks?open=${detailTask.id}`);
+          }}
+          onSaved={refetch}
         />
       )}
     </div>

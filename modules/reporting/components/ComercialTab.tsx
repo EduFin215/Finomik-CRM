@@ -60,7 +60,7 @@ export function ComercialTab({ range, drillDownQuery }: ComercialTabProps) {
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        <KpiCard value={k.newLeads} label="Leads nuevos" onClick={() => navigate(`/crm/clients?createdFrom=${range.from}&createdTo=${range.to}`)} />
+        <KpiCard value={k.newLeads} label="Leads nuevos" onClick={() => navigate(`/crm/leads?createdFrom=${range.from}&createdTo=${range.to}`)} />
         <KpiCard value={k.dealsWon} label="Deals ganados" onClick={() => navigate(`/crm/deals?stage=won${qs ? `&${qs.replace('?', '')}` : ''}`)} />
         <KpiCard value={k.dealsLost} label="Deals perdidos" onClick={() => navigate(`/crm/deals?stage=lost`)} />
         <KpiCard value={k.conversionRate != null ? `${k.conversionRate}%` : '–'} label="Tasa conversión" />

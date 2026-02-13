@@ -20,11 +20,8 @@ const BillingView: React.FC = () => {
       <div className="h-full flex overflow-hidden">
       {/* Sidebar similar al CRM, pero para el módulo de facturación */}
       <aside className="w-64 bg-primary text-white flex flex-col shrink-0">
-        <div className="p-4 flex flex-col items-center gap-2">
-          <div className="bg-white p-2 rounded-xl shadow-sm border border-primary/20">
-            <img src="/finomik-logo-white.png" alt="Finomik" className="h-8 w-auto object-contain" />
-          </div>
-          <span className="text-[10px] uppercase tracking-widest text-brand-200 font-body">
+        <div className="p-4 pt-4 pb-2">
+          <span className="text-[10px] uppercase tracking-widest text-brand-200 font-body block text-center">
             Facturación e IVA España
           </span>
         </div>
@@ -35,7 +32,7 @@ const BillingView: React.FC = () => {
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-bold text-sm ${
               activeTab === 'contracts'
                 ? 'bg-brand-600 text-white border-l-4 border-white rounded-l-none'
-                : 'text-brand-200 hover:bg-brand-600/80'
+                : 'text-brand-200 hover:bg-white/10'
             }`}
           >
             <Repeat size={18} />
@@ -47,7 +44,7 @@ const BillingView: React.FC = () => {
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-bold text-sm ${
               activeTab === 'invoices'
                 ? 'bg-brand-600 text-white border-l-4 border-white rounded-l-none'
-                : 'text-brand-200 hover:bg-brand-600/80'
+                : 'text-brand-200 hover:bg-white/10'
             }`}
           >
             <FileText size={18} />
@@ -59,7 +56,7 @@ const BillingView: React.FC = () => {
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-bold text-sm ${
               activeTab === 'vat'
                 ? 'bg-brand-600 text-white border-l-4 border-white rounded-l-none'
-                : 'text-brand-200 hover:bg-brand-600/80'
+                : 'text-brand-200 hover:bg-white/10'
             }`}
           >
             <Euro size={18} />
@@ -71,7 +68,7 @@ const BillingView: React.FC = () => {
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-bold text-sm ${
               activeTab === 'expenses'
                 ? 'bg-brand-600 text-white border-l-4 border-white rounded-l-none'
-                : 'text-brand-200 hover:bg-brand-600/80'
+                : 'text-brand-200 hover:bg-white/10'
             }`}
           >
             <Receipt size={18} />
@@ -83,7 +80,7 @@ const BillingView: React.FC = () => {
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-bold text-sm ${
               activeTab === 'bank'
                 ? 'bg-brand-600 text-white border-l-4 border-white rounded-l-none'
-                : 'text-brand-200 hover:bg-brand-600/80'
+                : 'text-brand-200 hover:bg-white/10'
             }`}
           >
             <CreditCard size={18} />

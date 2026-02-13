@@ -2,6 +2,7 @@ import React from 'react';
 import { Bell } from 'lucide-react';
 import type { ReminderSettings } from '../types';
 import { useCRM } from '../context/CRMContext';
+import { Select } from '../modules/tasks/Select';
 
 const CHECK_INTERVAL_OPTIONS = [1, 5, 15, 30, 60] as const;
 const REMIND_BEFORE_OPTIONS = [5, 15, 30, 60] as const;
@@ -44,63 +45,51 @@ const SettingsView: React.FC = () => {
           </div>
 
           <div>
-            <label htmlFor="check-interval" className="block text-sm font-bold text-primary mb-2">
-              Comprobar cada (minutos)
-            </label>
-            <select
-              id="check-interval"
-              value={settings.checkIntervalMinutes}
-              onChange={(e) => onUpdateSettings({ checkIntervalMinutes: Number(e.target.value) })}
-              className="w-full max-w-xs px-4 py-2 bg-brand-100/50 border border-brand-200 rounded-lg text-primary font-body focus:ring-2 focus:ring-primary focus:border-transparent"
-            >
-              {CHECK_INTERVAL_OPTIONS.map((m) => (
-                <option key={m} value={m}>
-                  {m} min{m !== 1 ? 's' : ''}
-                </option>
-              ))}
-            </select>
+            <Select
+              label="Comprobar cada (minutos)"
+              value={String(settings.checkIntervalMinutes)}
+              onChange={(v) => onUpdateSettings({ checkIntervalMinutes: Number(v) })}
+              placeholder="Minutos"
+              options={CHECK_INTERVAL_OPTIONS.map((m) => ({
+                value: String(m),
+                label: `${m} min${m !== 1 ? 's' : ''}`,
+              }))}
+              className="max-w-xs"
+            />
             <p className="text-xs text-brand-400 font-body mt-1">
               Cada cuánto se revisa si hay tareas o reuniones próximas para avisar.
             </p>
           </div>
 
           <div>
-            <label htmlFor="remind-before" className="block text-sm font-bold text-primary mb-2">
-              Avisar … minutos antes (tareas)
-            </label>
-            <select
-              id="remind-before"
-              value={settings.remindMinutesBefore}
-              onChange={(e) => onUpdateSettings({ remindMinutesBefore: Number(e.target.value) })}
-              className="w-full max-w-xs px-4 py-2 bg-brand-100/50 border border-brand-200 rounded-lg text-primary font-body focus:ring-2 focus:ring-primary focus:border-transparent"
-            >
-              {REMIND_BEFORE_OPTIONS.map((m) => (
-                <option key={m} value={m}>
-                  {m} min{m !== 1 ? 's' : ''}
-                </option>
-              ))}
-            </select>
+            <Select
+              label="Avisar … minutos antes (tareas)"
+              value={String(settings.remindMinutesBefore)}
+              onChange={(v) => onUpdateSettings({ remindMinutesBefore: Number(v) })}
+              placeholder="Minutos"
+              options={REMIND_BEFORE_OPTIONS.map((m) => ({
+                value: String(m),
+                label: `${m} min${m !== 1 ? 's' : ''}`,
+              }))}
+              className="max-w-xs"
+            />
             <p className="text-xs text-brand-400 font-body mt-1">
               Recibirás el recordatorio cuando falte este tiempo para la hora de la tarea.
             </p>
           </div>
 
           <div>
-            <label htmlFor="remind-before-followup" className="block text-sm font-bold text-primary mb-2">
-              Avisar … minutos antes (reuniones y follow-ups)
-            </label>
-            <select
-              id="remind-before-followup"
-              value={settings.remindMinutesBeforeFollowUp}
-              onChange={(e) => onUpdateSettings({ remindMinutesBeforeFollowUp: Number(e.target.value) })}
-              className="w-full max-w-xs px-4 py-2 bg-brand-100/50 border border-brand-200 rounded-lg text-primary font-body focus:ring-2 focus:ring-primary focus:border-transparent"
-            >
-              {REMIND_BEFORE_OPTIONS.map((m) => (
-                <option key={m} value={m}>
-                  {m} min{m !== 1 ? 's' : ''}
-                </option>
-              ))}
-            </select>
+            <Select
+              label="Avisar … minutos antes (reuniones y follow-ups)"
+              value={String(settings.remindMinutesBeforeFollowUp)}
+              onChange={(v) => onUpdateSettings({ remindMinutesBeforeFollowUp: Number(v) })}
+              placeholder="Minutos"
+              options={REMIND_BEFORE_OPTIONS.map((m) => ({
+                value: String(m),
+                label: `${m} min${m !== 1 ? 's' : ''}`,
+              }))}
+              className="max-w-xs"
+            />
             <p className="text-xs text-brand-400 font-body mt-1">
               Tiempo de antelación para las notificaciones de reuniones y follow-ups. También aparecen en Calendario.
             </p>

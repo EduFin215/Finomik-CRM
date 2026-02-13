@@ -83,19 +83,23 @@ const PlatformHub: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-brand-100/10 via-white to-brand-100/20">
-      <header className="h-16 bg-white/80 backdrop-blur-xl border-b border-brand-200/60 flex items-center justify-between px-6 shrink-0">
+      <header className="h-16 flex items-center justify-between px-4 sm:px-6 shrink-0 bg-white border-b border-brand-200/50">
         <div className="flex items-center gap-3">
-          <div className="bg-white p-2 rounded-xl shadow-card border border-brand-200/40">
-            <img src="/finomik-logo-white.png" alt="Finomik Ecosystem" className="h-9 w-auto object-contain" />
-          </div>
-          <span className="text-sm font-bold text-primary font-title tracking-tight">Finomik Ecosystem</span>
+          <Link to="/" className="shrink-0 flex items-center py-2">
+            <img src="/finomik-logo-white.png" alt="Finomik" className="h-10 w-auto object-contain" />
+          </Link>
+          <span className="text-sm font-bold text-primary font-title tracking-tight hidden sm:inline">
+            Finomik Ecosystem
+          </span>
         </div>
-        <div className="flex items-center gap-4">
-          <p className="text-sm text-brand-500 font-body hidden sm:block truncate max-w-[200px]">{user?.email ?? 'Usuario'}</p>
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <p className="text-sm text-brand-600 font-body hidden xl:block truncate max-w-[140px]" title={user?.email ?? 'Usuario'}>
+            {user?.email ?? 'Usuario'}
+          </p>
           <button
             type="button"
             onClick={() => signOut()}
-            className="flex items-center gap-2 px-4 py-2.5 text-brand-600 hover:bg-brand-100/50 hover:text-primary rounded-xl text-sm font-body transition-all"
+            className="flex items-center gap-2 px-3 py-2.5 text-brand-600 hover:bg-brand-100/50 rounded-lg text-sm font-body transition-colors"
             title="Cerrar sesión"
           >
             <LogOut size={18} />

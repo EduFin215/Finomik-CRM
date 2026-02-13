@@ -127,6 +127,36 @@ export async function listMyWorkTasks(assigneeUserId: string): Promise<WorkTask[
   return withLinks;
 }
 
+/** List work_tasks linked to an entity (e.g. client, deal, project) via work_task_links. */
+export async function listWorkTasksForEntity(
+  entityType: WorkTaskLinkEntityType,
+  entityId: string
+): Promise<WorkTask[]> {
+  if (!isSupabaseConfigured() || !supabase) return [];
+  const { data: linkRows, error: linkError } = await supabase
+    .from('work_task_links')
+    .select('task_id')
+    .eq('entity_type', entityType)
+    .eq('entity_id', entityId);
+  if (linkError || !linkRows?.length) return [];
+  const taskIds = [...new Set((linkRows as { task_id: string }[]).map((r) => r.task_id))];
+  const { data: rows, error } = await supabase
+    .from('work_tasks')
+    .select('*')
+    .in('id', taskIds)
+    .neq('status', 'archived')
+    .order('due_at', { ascending: true, nullsFirst: false });
+  if (error) return [];
+  const tasks = ((rows ?? []) as Record<string, unknown>[]).map((r) => rowToWorkTask(r));
+  const withLinks = await Promise.all(
+    tasks.map(async (t) => {
+      const links = await getLinksByTaskId(t.id);
+      return { ...t, links };
+    })
+  );
+  return withLinks;
+}
+
 export interface ListAllWorkTasksFilters {
   assigneeUserId?: string | null;
   status?: WorkTaskStatus | WorkTaskStatus[];

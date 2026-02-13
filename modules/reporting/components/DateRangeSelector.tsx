@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { DateRangeKey } from '../../../services/crm/dashboard';
+import { DateTimePicker } from '../../tasks/DateTimePicker';
 
 const LABELS: Record<DateRangeKey, string> = {
   last30: '30 días',
@@ -61,33 +62,35 @@ export function DateRangeSelector({
       </button>
       {open && (
         <>
-          <div className="fixed inset-0 z-10" aria-hidden onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-20 mt-2 min-w-[200px] rounded-xl border border-brand-200/60 bg-white/95 backdrop-blur-sm py-1 shadow-dropdown">
+          <div className="fixed inset-0 z-[55]" aria-hidden onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full z-[60] mt-2 min-w-[200px] rounded-xl border border-brand-200/60 bg-white/95 backdrop-blur-sm py-1 shadow-dropdown">
             {(['last30', 'last90', 'ytd'] as const).map((key) => (
               <button
                 key={key}
                 type="button"
                 onClick={() => handleSelect(key)}
-                className={`block w-full px-4 py-3 text-left text-sm font-bold ${value === key ? 'bg-primary text-white' : 'text-primary hover:bg-brand-100/50'}`}
+                className={`block w-full px-4 py-3 text-left text-sm font-bold transition-colors ${value === key ? 'bg-brand-100/50 text-primary' : 'text-brand-600 hover:bg-brand-100/50'}`}
               >
                 {LABELS[key]}
               </button>
             ))}
-            <div className="border-t border-brand-100 px-4 py-2">
+            <div className="border-t border-brand-100 px-4 py-3">
               <p className="text-xs font-bold uppercase text-brand-500 mb-2">Personalizado</p>
-              <div className="flex gap-2 items-center">
-                <input
-                  type="date"
-                  value={customFromLocal}
-                  onChange={(e) => setCustomFromLocal(e.target.value)}
-                  className="rounded-xl border border-brand-200/60 px-2.5 py-1.5 text-sm font-body"
+              <div className="flex gap-2 items-center flex-wrap">
+                <DateTimePicker
+                  dateValue={customFromLocal}
+                  onChangeDate={setCustomFromLocal}
+                  showTime={false}
+                  placeholder="Desde"
+                  className="flex-1 min-w-[140px]"
                 />
-                <span className="text-brand-400">–</span>
-                <input
-                  type="date"
-                  value={customToLocal}
-                  onChange={(e) => setCustomToLocal(e.target.value)}
-                  className="rounded-xl border border-brand-200/60 px-2.5 py-1.5 text-sm font-body"
+                <span className="text-brand-400 shrink-0">–</span>
+                <DateTimePicker
+                  dateValue={customToLocal}
+                  onChangeDate={setCustomToLocal}
+                  showTime={false}
+                  placeholder="Hasta"
+                  className="flex-1 min-w-[140px]"
                 />
               </div>
               <button

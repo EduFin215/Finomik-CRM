@@ -1,23 +1,22 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Table as TableIcon,
   Kanban,
   Briefcase,
   FolderOpen,
-  Calendar as CalendarIcon,
   Upload,
   Search,
   Bell,
   Settings,
   PlusCircle,
   Menu,
-  X,
 } from 'lucide-react';
 import { School, Phase, CommercialStatus, TaskPriority } from '../types';
 import { getSchools, createSchool, updateSchool as updateSchoolApi, deleteSchool, createTask } from '../services/schools';
+import { ensureSchoolFoldersExist } from '../services/resourceFolders';
 import { isSupabaseConfigured } from '../services/supabase';
 import { syncTaskToGoogleCalendar } from '../services/googleCalendar';
 import { useUpcomingReminders, getUpcomingReminderItems } from '../hooks/useUpcomingReminders';
@@ -25,6 +24,7 @@ import { useReminderSettings } from '../hooks/useReminderSettings';
 import SchoolDetail from './SchoolDetail';
 import NewSchoolModal from './NewSchoolModal';
 import { ToolLayout } from './layout/ToolLayout';
+import { SidebarNav } from './layout/SidebarNav';
 import { useToast } from '../context/ToastContext';
 import { ToastContainer } from './ToastContainer';
 import { CRMProvider, useCRM } from '../context/CRMContext';
@@ -65,16 +65,16 @@ function CRMLayoutInner() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const searchSlot = (
-    <>
+    <div className="relative">
       <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-400 w-4 h-4 pointer-events-none" />
       <input
         type="text"
         placeholder="Buscar por nombre, ciudad..."
-        className="w-full pl-10 pr-3 sm:pr-4 py-2.5 bg-brand-100/50 border border-brand-200/60 focus:bg-white focus:border-primary rounded-xl text-sm transition-all outline-none font-body text-primary placeholder:text-brand-400"
+        className="w-full pl-10 pr-4 py-2 bg-brand-100/50 border border-brand-200/60 rounded-lg text-sm text-primary placeholder:text-brand-400 font-body focus:bg-white focus:border-primary focus:outline-none transition-colors"
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
       />
-    </>
+    </div>
   );
 
   const notificationsSlot = (
@@ -92,140 +92,48 @@ function CRMLayoutInner() {
       notificationsSlot={notificationsSlot}
     >
       <div className="flex h-full w-full overflow-hidden bg-white">
-      {/* Overlay móvil cuando el menú está abierto */}
-      {sidebarOpen && (
-        <button
-          type="button"
-          aria-label="Cerrar menú"
-          onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 lg:hidden"
-        />
-      )}
-
-      <aside
-        className={`
-          fixed lg:static inset-y-0 left-0 z-50 w-64 bg-primary/95 backdrop-blur-xl text-white flex flex-col shrink-0
-          transform transition-transform duration-200 ease-out
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        `}
-      >
-        <div className="flex items-center justify-between p-4 lg:justify-center">
-          <img src="/finomik-logo.png" alt="Finomik" className="h-8 w-auto object-contain" />
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-2 text-brand-200 hover:text-white rounded-xl"
-            aria-label="Cerrar menú"
-          >
-            <X size={24} />
-          </button>
-        </div>
-        <div className="px-4 pb-2 flex flex-col items-center gap-2">
-          <span className="text-[10px] uppercase tracking-widest text-brand-200 font-body">CRM Educativo</span>
-        </div>
-        {!isSupabaseConfigured() && (
-          <div className="mx-4 mb-2 px-3 py-2 rounded-lg bg-amber-500/20 text-amber-200 text-xs font-body">
-            Configura Supabase en .env para persistir datos.
-          </div>
-        )}
-        <div className="px-4 mb-4">
-          <button
-            onClick={openNewSchoolModal}
-            className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-primary/30"
-          >
-            <PlusCircle size={20} />
-            <span>Nuevo Cliente</span>
-          </button>
-        </div>
-        <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
-          <NavLink
-            to="/crm/dashboard"
-            onClick={() => setSidebarOpen(false)}
-            className={({ isActive }) =>
-              `w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-bold ${isActive ? 'bg-brand-600 text-white' : 'text-brand-200 hover:bg-white/10'}`
-            }
-          >
-            <LayoutDashboard size={20} />
-            <span>Dashboard</span>
-          </NavLink>
-          <NavLink
-            to="/crm/clients"
-            onClick={() => setSidebarOpen(false)}
-            className={({ isActive }) =>
-              `w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-bold ${isActive ? 'bg-brand-600 text-white' : 'text-brand-200 hover:bg-white/10'}`
-            }
-          >
-            <TableIcon size={20} />
-            <span>Clients</span>
-          </NavLink>
-          <NavLink
-            to="/crm/deals"
-            onClick={() => setSidebarOpen(false)}
-            className={({ isActive }) =>
-              `w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-bold ${isActive ? 'bg-brand-600 text-white' : 'text-brand-200 hover:bg-white/10'}`
-            }
-          >
-            <Briefcase size={20} />
-            <span>Deals</span>
-          </NavLink>
-          <NavLink
-            to="/crm/projects"
-            onClick={() => setSidebarOpen(false)}
-            className={({ isActive }) =>
-              `w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-bold ${isActive ? 'bg-brand-600 text-white' : 'text-brand-200 hover:bg-white/10'}`
-            }
-          >
-            <FolderOpen size={20} />
-            <span>Projects</span>
-          </NavLink>
-          <div className="pt-4 pb-2 px-4 text-[11px] font-bold text-brand-200 uppercase tracking-wider">Pipeline</div>
-          <NavLink
-            to="/crm/pipeline"
-            onClick={() => setSidebarOpen(false)}
-            className={({ isActive }) =>
-              `w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-bold ${isActive ? 'bg-brand-600 text-white' : 'text-brand-200 hover:bg-white/10'}`
-            }
-          >
-            <Kanban size={20} />
-            <span>Pipeline (Kanban)</span>
-          </NavLink>
-          <div className="pt-4 pb-2 px-4 text-[11px] font-bold text-brand-200 uppercase tracking-wider">Actividad</div>
-          <NavLink
-            to="/crm/calendar"
-            onClick={() => setSidebarOpen(false)}
-            className={({ isActive }) =>
-              `w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-bold ${
-                isActive ? 'bg-brand-600 text-white' : 'text-brand-200 hover:bg-white/10'
-              }`
-            }
-          >
-            <CalendarIcon size={20} />
-            <span>Calendario</span>
-          </NavLink>
-          <NavLink
-            to="/crm/import"
-            onClick={() => setSidebarOpen(false)}
-            className={({ isActive }) =>
-              `w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-bold ${isActive ? 'bg-brand-600 text-white' : 'text-brand-200 hover:bg-white/10'}`
-            }
-          >
-            <Upload size={20} />
-            <span>Importar Excel</span>
-          </NavLink>
-        </nav>
-        <div className="p-4 border-t border-brand-600/50">
-          <NavLink
-            to="/crm/settings"
-            onClick={() => setSidebarOpen(false)}
-            className={({ isActive }) =>
-              `w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-bold ${isActive ? 'bg-brand-600 text-white' : 'text-brand-200 hover:bg-white/10'}`
-            }
-          >
-            <Settings size={20} />
-            <span>Configuración</span>
-          </NavLink>
-        </div>
-      </aside>
+      <SidebarNav
+        variant="dark"
+        topSlot={
+          <>
+            {!isSupabaseConfigured() && (
+              <div className="mb-2 px-3 py-2 rounded-lg bg-amber-500/20 text-amber-200 text-xs font-body">
+                Configura Supabase en .env para persistir datos.
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => openNewSchoolModal()}
+              className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-primary/30"
+            >
+              <PlusCircle size={20} />
+              <span>Nuevo Lead</span>
+            </button>
+          </>
+        }
+        items={[
+          { to: '/crm/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+          { to: '/crm/leads', label: 'Leads', icon: TableIcon },
+          { to: '/crm/deals', label: 'Deals', icon: Briefcase },
+          { to: '/crm/projects', label: 'Projects', icon: FolderOpen },
+        ]}
+        groups={[
+          {
+            label: 'Pipeline',
+            items: [{ to: '/crm/pipeline', label: 'Pipeline (Kanban)', icon: Kanban }],
+          },
+          {
+            label: 'Actividad',
+            items: [
+              { to: '/crm/import', label: 'Importar Excel', icon: Upload },
+            ],
+          },
+        ]}
+        footerItems={[{ to: '/crm/settings', label: 'Configuración', icon: Settings }]}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onNavigate={() => setSidebarOpen(false)}
+      />
 
       <main className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
         <div className="flex items-center gap-2 px-3 py-2 border-b border-brand-100 lg:hidden">
@@ -280,11 +188,11 @@ function NotificationsDropdown({
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="relative flex items-center gap-2 pr-4 border-r border-brand-200">
+    <div className="relative flex items-center">
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="p-2 text-brand-600 hover:bg-brand-100/50 rounded-full relative transition-colors"
+        className="relative p-2.5 rounded-lg text-brand-600 hover:bg-brand-100/50 transition-colors"
         aria-expanded={open}
         aria-label="Notificaciones"
       >
@@ -295,17 +203,17 @@ function NotificationsDropdown({
       </button>
       {open && (
         <>
-          <div className="fixed inset-0 z-40" aria-hidden onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-2 w-[min(20rem,calc(100vw-2rem))] max-h-[70vh] overflow-y-auto bg-white/95 backdrop-blur-sm rounded-xl border border-brand-200/60 shadow-dropdown z-50 py-2">
-            <div className="px-4 py-2 border-b border-brand-100">
+          <div className="fixed inset-0 z-[55]" aria-hidden onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full mt-2 z-[60] w-[min(20rem,calc(100vw-2rem))] max-h-[70vh] overflow-y-auto bg-white/95 backdrop-blur-sm rounded-xl border border-brand-200/60 shadow-dropdown py-1">
+            <div className="px-4 py-3 border-b border-brand-100">
               <h3 className="font-bold text-primary text-sm">Notificaciones</h3>
             </div>
             {upcomingReminders.length === 0 ? (
               <p className="px-4 py-6 text-brand-500 text-sm font-body">No hay notificaciones próximas.</p>
             ) : (
-              <ul className="py-2">
+              <ul className="py-1">
                 {upcomingReminders.map((item) => (
-                  <li key={`${item.schoolId}-${item.at.getTime()}-${item.title}`} className="px-4 py-2 hover:bg-brand-100/30">
+                  <li key={`${item.schoolId}-${item.at.getTime()}-${item.title}`} className="px-4 py-2 hover:bg-brand-100/50">
                     <p className="text-sm font-bold text-primary">{item.title}</p>
                     <p className="text-xs text-brand-500 font-body">
                       {item.schoolName} · {item.at.toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })}
@@ -324,8 +232,8 @@ function NotificationsDropdown({
                 ))}
               </ul>
             )}
-            <div className="border-t border-brand-100 px-4 py-2">
-              <button type="button" onClick={() => { onGoToCalendar(); setOpen(false); }} className="text-sm font-bold text-brand-600 hover:text-primary">
+            <div className="border-t border-brand-100">
+              <button type="button" onClick={() => { onGoToCalendar(); setOpen(false); }} className="w-full px-4 py-3 text-left text-sm font-bold text-brand-600 hover:bg-brand-100/50 transition-colors">
                 Ir a Calendario
               </button>
             </div>
@@ -401,15 +309,21 @@ export default function CRMLayout() {
   };
 
   const createSchoolHandler = async (newSchool: School) => {
-    if (!isSupabaseConfigured()) return;
-    const result = await createSchool(newSchool);
-    if (!result) {
-      toast.toast.error('No se pudo crear el centro');
+    if (!isSupabaseConfigured()) {
+      toast.toast.error('Configura Supabase en .env para crear leads.');
       return;
     }
+    const result = await createSchool(newSchool);
+    if (!result) {
+      toast.toast.error('No se pudo crear el lead');
+      return;
+    }
+    await ensureSchoolFoldersExist();
     refetchSchools();
+    queryClient.invalidateQueries({ queryKey: ['resource_folders'] });
+    queryClient.invalidateQueries({ queryKey: ['clients'] });
     setIsNewSchoolModalOpen(false);
-    toast.toast.success('Centro creado');
+    toast.toast.success('Lead creado');
   };
 
   const handleImportedSchools = async (processedSchools: School[]) => {
@@ -419,7 +333,9 @@ export default function CRMLayout() {
       const result = await createSchool(school);
       if (!result) failed++;
     }
+    await ensureSchoolFoldersExist();
     refetchSchools();
+    queryClient.invalidateQueries({ queryKey: ['resource_folders'] });
     if (failed > 0) toast.toast.error(`Importación: ${failed} de ${processedSchools.length} no se pudieron crear`);
     else toast.toast.success('Importación completada');
   };
@@ -434,7 +350,7 @@ export default function CRMLayout() {
   const navigateToView = (tab: 'table' | 'pipeline', filters?: { phase?: Phase[]; status?: CommercialStatus[] }) => {
     setPhaseFilter(filters?.phase ?? []);
     setStatusFilter(filters?.status ?? []);
-    navigate(tab === 'table' ? '/crm/clients' : '/crm/pipeline');
+    navigate(tab === 'table' ? '/crm/leads' : '/crm/pipeline');
   };
 
   const scheduleMeeting = async (

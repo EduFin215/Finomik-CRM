@@ -6,6 +6,8 @@ import { listProjects, type ListProjectsFilters } from '../../services/crm/proje
 import type { ProjectStatus } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import TaskFormModal from '../../modules/tasks/TaskFormModal';
+import { DateTimePicker } from '../../modules/tasks/DateTimePicker';
+import { Select } from '../../modules/tasks/Select';
 
 const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
   { value: 'planned', label: 'Planned' },
@@ -62,41 +64,36 @@ const ProjectsListPage: React.FC = () => {
         <span className="text-brand-500 text-xs font-bold uppercase flex items-center gap-1">
           <Filter size={12} /> Filters
         </span>
-        <select
+        <Select
           value={statusFilter}
-          onChange={(e) => {
-            const v = (e.target.value || '') as ProjectStatus | '';
-            setStatusFilter(v);
-            setSearchParams((p) => { const n = new URLSearchParams(p); if (v) n.set('status', v); else n.delete('status'); return n; });
+          onChange={(v) => {
+            const val = (v || '') as ProjectStatus | '';
+            setStatusFilter(val);
+            setSearchParams((p) => { const n = new URLSearchParams(p); if (val) n.set('status', val); else n.delete('status'); return n; });
           }}
-          className="rounded-xl border border-brand-200/60 bg-white px-3 py-2 text-sm font-body text-primary"
-        >
-          <option value="">All statuses</option>
-          {STATUS_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-        <input
-          type="date"
-          value={dueFrom}
-          onChange={(e) => {
-            const v = e.target.value;
+          placeholder="All statuses"
+          options={STATUS_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+          className="min-w-0"
+        />
+        <DateTimePicker
+          dateValue={dueFrom}
+          onChangeDate={(v) => {
             setDueFrom(v);
             setSearchParams((p) => { const n = new URLSearchParams(p); if (v) n.set('dueFrom', v); else n.delete('dueFrom'); return n; });
           }}
+          showTime={false}
           placeholder="Due from"
-          className="rounded-xl border border-brand-200/60 px-3 py-2 text-sm font-body"
+          className="min-w-0"
         />
-        <input
-          type="date"
-          value={dueTo}
-          onChange={(e) => {
-            const v = e.target.value;
+        <DateTimePicker
+          dateValue={dueTo}
+          onChangeDate={(v) => {
             setDueTo(v);
             setSearchParams((p) => { const n = new URLSearchParams(p); if (v) n.set('dueTo', v); else n.delete('dueTo'); return n; });
           }}
+          showTime={false}
           placeholder="Due to"
-          className="rounded-xl border border-brand-200/60 px-3 py-2 text-sm font-body"
+          className="min-w-0"
         />
       </div>
 
@@ -112,7 +109,7 @@ const ProjectsListPage: React.FC = () => {
               <thead className="sticky top-0 bg-brand-100/30 z-10 border-b border-brand-200">
                 <tr className="text-brand-400 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">
                   <th className="py-3 px-3 sm:px-4">Title</th>
-                  <th className="py-3 px-3 sm:px-4">Client</th>
+                  <th className="py-3 px-3 sm:px-4">Lead</th>
                   <th className="py-3 px-3 sm:px-4">Status</th>
                   <th className="py-3 px-3 sm:px-4 hidden md:table-cell">Start date</th>
                   <th className="py-3 px-3 sm:px-4">Due date</th>
@@ -125,7 +122,7 @@ const ProjectsListPage: React.FC = () => {
                   <tr
                     key={project.id}
                     className="group hover:bg-brand-100/30 transition-colors cursor-pointer"
-                    onClick={() => navigate(`/crm/clients/${project.clientId}`)}
+                    onClick={() => navigate(`/crm/leads/${project.clientId}`)}
                   >
                     <td className="py-3 px-3 sm:px-4 font-medium text-primary">{project.title}</td>
                     <td className="py-3 px-3 sm:px-4 text-sm text-brand-600 truncate max-w-[140px]">{project.clientName ?? project.clientId}</td>
@@ -147,7 +144,7 @@ const ProjectsListPage: React.FC = () => {
                         </button>
                         <button
                           type="button"
-                          onClick={(e) => { e.stopPropagation(); navigate(`/crm/clients/${project.clientId}`); }}
+                          onClick={(e) => { e.stopPropagation(); navigate(`/crm/leads/${project.clientId}`); }}
                           className="p-2 text-brand-500 hover:bg-brand-100/50 hover:text-primary rounded-xl transition-colors"
                         >
                           <ChevronRight size={18} />
@@ -164,7 +161,7 @@ const ProjectsListPage: React.FC = () => {
           <div className="flex flex-col items-center justify-center py-20 text-brand-400">
             <Filter size={48} className="mb-4 opacity-20" />
             <p className="text-lg font-subtitle text-primary">No projects found</p>
-            <p className="text-sm font-body">Adjust filters or add projects from a client.</p>
+            <p className="text-sm font-body">Adjust filters or add projects from a lead.</p>
           </div>
         )}
       </div>

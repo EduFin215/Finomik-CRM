@@ -6,17 +6,27 @@ import {
   listFinanceExpenses,
   getFinanceExpense,
   createFinanceExpense,
+  getExpensesSummary,
 } from '../../services/finance';
 import type { FinanceExpense } from '../../types';
 import { formatCurrency } from './formatCurrency';
-
-const STATUS_BADGE: Record<string, string> = {
-  pending: 'bg-amber-100 text-amber-800',
-  paid: 'bg-emerald-100 text-emerald-800',
-  cancelled: 'bg-slate-100 text-slate-600',
-};
+import { DateTimePicker } from '../tasks/DateTimePicker';
+import { Select } from '../tasks/Select';
+import { FinanceModal, FormField, StatusBadge } from './components';
 
 const CATEGORIES = ['software', 'marketing', 'office', 'travel', 'payroll', 'other'];
+const CATEGORY_OPTIONS = CATEGORIES.map((c) => ({ value: c, label: c }));
+const EXPENSE_STATUS_OPTIONS = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'paid', label: 'Paid' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
+const SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'oldest', label: 'Oldest first' },
+  { value: 'amount', label: 'Amount high–low' },
+  { value: 'date', label: 'Date' },
+];
 
 function SideDrawer({
   open,
@@ -79,118 +89,56 @@ function ExpenseFormModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} aria-hidden />
-      <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-auto">
-        <h2 className="text-xl font-bold text-primary mb-4">Add Expense</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2 border border-brand-200 rounded-lg text-primary"
-              placeholder="e.g. SaaS subscription"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Vendor</label>
-            <input
-              type="text"
-              value={vendor}
-              onChange={(e) => setVendor(e.target.value)}
-              className="w-full px-3 py-2 border border-brand-200 rounded-lg text-primary"
-              placeholder="Vendor name"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-3 py-2 border border-brand-200 rounded-lg text-primary"
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Amount</label>
-              <input
-                type="number"
-                step="0.01"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="w-full px-3 py-2 border border-brand-200 rounded-lg text-primary"
-                placeholder="0"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Currency</label>
-              <input
-                type="text"
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-                className="w-full px-3 py-2 border border-brand-200 rounded-lg text-primary"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3 py-2 border border-brand-200 rounded-lg text-primary"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Due date</label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3 py-2 border border-brand-200 rounded-lg text-primary"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as FinanceExpense['status'])}
-              className="w-full px-3 py-2 border border-brand-200 rounded-lg text-primary"
-            >
-              <option value="pending">Pending</option>
-              <option value="paid">Paid</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="recurring"
-              checked={isRecurring}
-              onChange={(e) => setIsRecurring(e.target.checked)}
-              className="rounded border-brand-200"
-            />
-            <label htmlFor="recurring" className="text-sm text-slate-700">Recurring expense</label>
-          </div>
-          <div className="flex gap-2 justify-end pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">
-              Cancel
-            </button>
-            <button type="submit" className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:opacity-90">
-              Add Expense
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <FinanceModal
+      open
+      onClose={onClose}
+      title="Add Expense"
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-medium">
+            Cancel
+          </button>
+          <button type="submit" form="expense-form" className="px-4 py-2 bg-primary text-white rounded-xl font-medium hover:opacity-90">
+            Add Expense
+          </button>
+        </>
+      }
+    >
+      <form id="expense-form" onSubmit={handleSubmit} className="space-y-4">
+        <FormField label="Title">
+          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-3 py-2 border border-brand-200 rounded-xl text-primary" placeholder="e.g. SaaS subscription" />
+        </FormField>
+        <FormField label="Vendor">
+          <input type="text" value={vendor} onChange={(e) => setVendor(e.target.value)} className="w-full px-3 py-2 border border-brand-200 rounded-xl text-primary" placeholder="Vendor name" />
+        </FormField>
+        <FormField label="Category">
+          <Select value={category} onChange={setCategory} options={CATEGORY_OPTIONS} placeholder="Select" />
+        </FormField>
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="Amount">
+            <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full px-3 py-2 border border-brand-200 rounded-xl text-primary" placeholder="0" />
+          </FormField>
+          <FormField label="Currency">
+            <input type="text" value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-full px-3 py-2 border border-brand-200 rounded-xl text-primary" />
+          </FormField>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="Date">
+            <DateTimePicker dateValue={date} onChangeDate={setDate} showTime={false} placeholder="Select" />
+          </FormField>
+          <FormField label="Due date">
+            <DateTimePicker dateValue={dueDate} onChangeDate={setDueDate} showTime={false} placeholder="Select" />
+          </FormField>
+        </div>
+        <FormField label="Status">
+          <Select value={status} onChange={(v) => setStatus(v as FinanceExpense['status'])} options={EXPENSE_STATUS_OPTIONS} placeholder="Select" />
+        </FormField>
+        <div className="flex items-center gap-2">
+          <input type="checkbox" id="recurring" checked={isRecurring} onChange={(e) => setIsRecurring(e.target.checked)} className="rounded border-brand-200" />
+          <label htmlFor="recurring" className="text-sm text-slate-700">Recurring expense</label>
+        </div>
+      </form>
+    </FinanceModal>
   );
 }
 
@@ -198,34 +146,45 @@ export default function FinanceExpensesPage() {
   const [drawerId, setDrawerId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [filterCategory, setFilterCategory] = useState<string>(() => searchParams.get('category') || '');
-  const [filterStatus, setFilterStatus] = useState<string>(() => searchParams.get('status') || '');
-  const [filterFrom, setFilterFrom] = useState<string>(() => searchParams.get('from') || '');
-  const [filterTo, setFilterTo] = useState<string>(() => searchParams.get('to') || '');
+  const [searchParams] = useSearchParams();
+  const [pill, setPill] = useState<'all' | 'pending' | 'paid'>('all');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterFrom, setFilterFrom] = useState('');
+  const [filterTo, setFilterTo] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const cat = searchParams.get('category');
-    const status = searchParams.get('status');
-    const from = searchParams.get('from');
-    const to = searchParams.get('to');
-    if (cat !== null) setFilterCategory(cat || '');
-    if (status !== null) setFilterStatus(status || '');
-    if (from) setFilterFrom(from);
-    if (to) setFilterTo(to);
+    if (searchParams.get('filter') === 'overdue') setPill('pending');
   }, [searchParams]);
 
-  const { data: expenses = [], isLoading } = useQuery({
-    queryKey: ['finance-expenses', filterCategory || undefined, filterStatus || undefined, filterFrom || undefined, filterTo || undefined],
-    queryFn: () =>
-      listFinanceExpenses({
-        category: filterCategory || undefined,
-        status: filterStatus ? (filterStatus as FinanceExpense['status']) : undefined,
-        fromDate: filterFrom || undefined,
-        toDate: filterTo || undefined,
-      }),
+  const { data: summary } = useQuery({
+    queryKey: ['finance-expenses-summary'],
+    queryFn: getExpensesSummary,
   });
+  const expenseListParams = useMemo(() => {
+    const p: { category?: string; status?: FinanceExpense['status']; fromDate?: string; toDate?: string } = {};
+    if (filterStatus) p.status = filterStatus as FinanceExpense['status'];
+    else if (pill === 'pending') p.status = 'pending';
+    else if (pill === 'paid') p.status = 'paid';
+    if (filterCategory) p.category = filterCategory;
+    if (filterFrom) p.fromDate = filterFrom;
+    if (filterTo) p.toDate = filterTo;
+    return Object.keys(p).length ? p : undefined;
+  }, [pill, filterCategory, filterStatus, filterFrom, filterTo]);
+  const { data: expenses = [], isLoading } = useQuery({
+    queryKey: ['finance-expenses', expenseListParams],
+    queryFn: () => listFinanceExpenses(expenseListParams),
+  });
+  const filteredAndSortedExpenses = useMemo(() => {
+    let list = expenses;
+    if (sortBy === 'oldest') list = [...list].sort((a, b) => a.date.localeCompare(b.date));
+    else if (sortBy === 'amount') list = [...list].sort((a, b) => b.amount - a.amount);
+    else if (sortBy === 'date') list = [...list].sort((a, b) => b.date.localeCompare(a.date));
+    else list = [...list].sort((a, b) => b.date.localeCompare(a.date));
+    return list;
+  }, [expenses, sortBy]);
   const { data: selectedExpense } = useQuery({
     queryKey: ['finance-expense', drawerId],
     queryFn: () => getFinanceExpense(drawerId!),
@@ -238,6 +197,8 @@ export default function FinanceExpensesPage() {
     queryClient.invalidateQueries({ queryKey: ['finance-dashboard-kpis'] });
     queryClient.invalidateQueries({ queryKey: ['finance-expenses-by-category'] });
     queryClient.invalidateQueries({ queryKey: ['finance-upcoming-recurring'] });
+    queryClient.invalidateQueries({ queryKey: ['finance-expenses-summary'] });
+    queryClient.invalidateQueries({ queryKey: ['finance-payable-owing'] });
   };
 
   return (
@@ -247,95 +208,81 @@ export default function FinanceExpensesPage() {
           <h1 className="text-2xl font-title text-primary mb-1">Expenses</h1>
           <p className="text-slate-600 text-sm">Track and manage expenses.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setFilterOpen((o) => !o)}
-            className="inline-flex items-center gap-2 px-4 py-2 border border-brand-200 bg-white rounded-lg text-slate-700 hover:bg-slate-50"
-          >
+        <button type="button" onClick={() => setModalOpen(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl font-medium hover:opacity-90">
+          <Plus size={18} />
+          Add expense
+        </button>
+      </div>
+
+      {summary && (
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className="bg-white rounded-xl border border-brand-200/60 p-4">
+            <p className="text-xs text-brand-500 font-body mb-1">Pending total</p>
+            <p className="text-lg font-bold text-primary">{formatCurrency(summary.pendingTotal)}</p>
+          </div>
+          <div className="bg-white rounded-xl border border-brand-200/60 p-4">
+            <p className="text-xs text-brand-500 font-body mb-1">Paid this month</p>
+            <p className="text-lg font-bold text-primary">{formatCurrency(summary.paidThisMonth)}</p>
+          </div>
+          <div className="bg-white rounded-xl border border-brand-200/60 p-4">
+            <p className="text-xs text-brand-500 font-body mb-1">Recurring</p>
+            <p className="text-lg font-bold text-primary">{summary.recurringCount}</p>
+          </div>
+        </section>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <div className="relative">
+          <button type="button" onClick={() => setFilterOpen((o) => !o)} className="inline-flex items-center gap-2 px-4 py-2 border border-brand-200 bg-white rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50">
             <Filter size={18} />
             Filter
           </button>
-          <button
-            type="button"
-            onClick={() => setModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg font-medium hover:opacity-90"
-          >
-            <Plus size={18} />
-            Add Expense
-          </button>
+          {filterOpen && (
+            <>
+              <div className="fixed inset-0 z-40" aria-hidden onClick={() => setFilterOpen(false)} />
+              <div className="absolute left-0 top-full z-50 mt-2 w-72 p-4 bg-white rounded-xl border border-brand-200 shadow-lg">
+                <FormField label="Category" className="mb-3">
+                  <Select value={filterCategory} onChange={setFilterCategory} options={[{ value: '', label: 'All' }, ...CATEGORY_OPTIONS]} placeholder="All" />
+                </FormField>
+                <FormField label="Status" className="mb-3">
+                  <Select value={filterStatus} onChange={setFilterStatus} options={[{ value: '', label: 'All' }, ...EXPENSE_STATUS_OPTIONS]} placeholder="All" />
+                </FormField>
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <FormField label="From">
+                    <DateTimePicker dateValue={filterFrom} onChangeDate={setFilterFrom} showTime={false} placeholder="From" />
+                  </FormField>
+                  <FormField label="To">
+                    <DateTimePicker dateValue={filterTo} onChangeDate={setFilterTo} showTime={false} placeholder="To" />
+                  </FormField>
+                </div>
+                <button type="button" onClick={() => setFilterOpen(false)} className="w-full py-2 bg-primary text-white rounded-xl font-medium text-sm">
+                  Apply filters
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+        <Select value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} placeholder="Sort" className="w-40" />
+        <div className="flex flex-wrap gap-1">
+          {(['all', 'pending', 'paid'] as const).map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setPill(p)}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium ${pill === p ? 'bg-primary text-white' : 'bg-white border border-brand-200 text-slate-600 hover:bg-slate-50'}`}
+            >
+              {p === 'all' && `All (${expenses.length})`}
+              {p === 'pending' && `Pending (${expenses.filter((e) => e.status === 'pending').length})`}
+              {p === 'paid' && `Paid (${expenses.filter((e) => e.status === 'paid').length})`}
+            </button>
+          ))}
         </div>
       </div>
-
-      {filterOpen && (
-        <div className="mb-4 p-4 bg-white rounded-xl border border-brand-200 flex flex-wrap items-center gap-3">
-          <div>
-            <label className="block text-xs text-slate-500 mb-1">Category</label>
-            <select
-              value={filterCategory}
-              onChange={(e) => {
-                const v = e.target.value;
-                setFilterCategory(v);
-                setSearchParams((p) => { const n = new URLSearchParams(p); if (v) n.set('category', v); else n.delete('category'); return n; });
-              }}
-              className="px-3 py-2 border border-brand-200 rounded-lg text-sm text-primary"
-            >
-              <option value="">All</option>
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-slate-500 mb-1">Status</label>
-            <select
-              value={filterStatus}
-              onChange={(e) => {
-                const v = e.target.value;
-                setFilterStatus(v);
-                setSearchParams((p) => { const n = new URLSearchParams(p); if (v) n.set('status', v); else n.delete('status'); return n; });
-              }}
-              className="px-3 py-2 border border-brand-200 rounded-lg text-sm text-primary"
-            >
-              <option value="">All</option>
-              <option value="pending">Pending</option>
-              <option value="paid">Paid</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-slate-500 mb-1">From</label>
-            <input
-              type="date"
-              value={filterFrom}
-              onChange={(e) => {
-                const v = e.target.value;
-                setFilterFrom(v);
-                setSearchParams((p) => { const n = new URLSearchParams(p); if (v) n.set('from', v); else n.delete('from'); return n; });
-              }}
-              className="px-3 py-2 border border-brand-200 rounded-lg text-sm text-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-500 mb-1">To</label>
-            <input
-              type="date"
-              value={filterTo}
-              onChange={(e) => {
-                const v = e.target.value;
-                setFilterTo(v);
-                setSearchParams((p) => { const n = new URLSearchParams(p); if (v) n.set('to', v); else n.delete('to'); return n; });
-              }}
-              className="px-3 py-2 border border-brand-200 rounded-lg text-sm text-primary"
-            />
-          </div>
-        </div>
-      )}
 
       <div className="bg-white rounded-xl border border-brand-200 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="p-12 text-center text-slate-500">Loading…</div>
-        ) : expenses.length === 0 ? (
+        ) : filteredAndSortedExpenses.length === 0 ? (
           <div className="p-12 text-center">
             <p className="text-slate-500 mb-4">No expenses yet.</p>
             <button
@@ -360,24 +307,16 @@ export default function FinanceExpensesPage() {
               </tr>
             </thead>
             <tbody>
-              {expenses.map((e) => (
-                <tr
-                  key={e.id}
-                  onClick={() => setDrawerId(e.id)}
-                  className="border-b border-brand-100 hover:bg-slate-50/80 cursor-pointer transition-colors"
-                >
-                  <td className="py-3 px-4">
-                    {e.isRecurring && <Repeat size={16} className="text-slate-400" title="Recurring" />}
-                  </td>
+              {filteredAndSortedExpenses.map((e) => (
+                <tr key={e.id} onClick={() => setDrawerId(e.id)} className="border-b border-brand-100 hover:bg-slate-50/80 cursor-pointer transition-colors">
+                  <td className="py-3 px-4 w-8">{e.isRecurring && <Repeat size={16} className="text-slate-400" title="Recurring" />}</td>
                   <td className="py-3 px-4 font-medium text-primary">{e.title}</td>
                   <td className="py-3 px-4 text-slate-600">{e.vendor}</td>
                   <td className="py-3 px-4 text-slate-600">{e.category}</td>
                   <td className="py-3 px-4">{formatCurrency(e.amount, e.currency)}</td>
                   <td className="py-3 px-4 text-slate-600">{e.date}</td>
                   <td className="py-3 px-4">
-                    <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${STATUS_BADGE[e.status] ?? 'bg-slate-100'}`}>
-                      {e.status}
-                    </span>
+                    <StatusBadge status={e.status} variant="expense" />
                   </td>
                 </tr>
               ))}
@@ -395,7 +334,7 @@ export default function FinanceExpensesPage() {
             <div><dt className="text-xs text-slate-500">Amount</dt><dd>{formatCurrency(selectedExpense.amount, selectedExpense.currency)}</dd></div>
             <div><dt className="text-xs text-slate-500">Date</dt><dd>{selectedExpense.date}</dd></div>
             <div><dt className="text-xs text-slate-500">Due date</dt><dd>{selectedExpense.dueDate ?? '–'}</dd></div>
-            <div><dt className="text-xs text-slate-500">Status</dt><dd><span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${STATUS_BADGE[selectedExpense.status] ?? ''}`}>{selectedExpense.status}</span></dd></div>
+            <div><dt className="text-xs text-slate-500">Status</dt><dd><StatusBadge status={selectedExpense.status} variant="expense" /></dd></div>
             {selectedExpense.isRecurring && <div><dt className="text-xs text-slate-500">Recurring</dt><dd>Yes</dd></div>}
           </dl>
         )}

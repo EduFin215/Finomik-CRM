@@ -1,10 +1,12 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { CalendarEvent } from '../types';
-import { Clock, ChevronLeft, ChevronRight, CheckCircle, Plus, X, Calendar, Bell } from 'lucide-react';
+import { ClockIcon, ChevronLeftIcon, ChevronRightIcon, CheckCircleIcon, PlusIcon, XMarkIcon, CalendarIcon, BellIcon } from '@heroicons/react/24/solid';
 import { isGoogleCalendarConfigured, getStoredToken, requestGoogleCalendarAuth, fetchCalendarEvents } from '../services/googleCalendar';
 import { getUpcomingReminderItems } from '../hooks/useUpcomingReminders';
 import { useCRM } from '../context/CRMContext';
 import { isSupabaseConfigured } from '../services/supabase';
+import { DateTimePicker } from '../modules/tasks/DateTimePicker';
+import { Select } from '../modules/tasks/Select';
 
 const defaultMeetingDate = () => new Date().toISOString().split('T')[0];
 const defaultMeetingTime = '10:00';
@@ -327,11 +329,10 @@ const CalendarView: React.FC = () => {
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="text-xs font-bold text-brand-500 uppercase block mb-1">Centro</label>
-                <select
+                <Select
+                  label="Centro"
                   value={scheduleForm.selectedSchoolId}
-                  onChange={(e) => {
-                    const id = e.target.value;
+                  onChange={(id) => {
                     const school = schools.find(s => s.id === id);
                     setScheduleForm(prev => ({
                       ...prev,
@@ -339,13 +340,10 @@ const CalendarView: React.FC = () => {
                       title: prev.title || (school ? `Reunión con ${school.name}` : ''),
                     }));
                   }}
-                  className="w-full p-3 bg-brand-100/50 border border-brand-200 rounded-xl text-sm font-body text-primary focus:ring-2 focus:ring-brand-100 outline-none"
-                >
-                  <option value="">Selecciona un centro</option>
-                  {schools.map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
+                  placeholder="Selecciona un centro"
+                  options={schools.map((s) => ({ value: s.id, label: s.name }))}
+                  className="min-w-0"
+                />
               </div>
               <div>
                 <label className="text-xs font-bold text-brand-500 uppercase block mb-1">Título</label>
@@ -359,12 +357,13 @@ const CalendarView: React.FC = () => {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-brand-500 uppercase block mb-1">Fecha</label>
-                  <input
-                    type="date"
-                    value={scheduleForm.dueDate}
-                    onChange={(e) => setScheduleForm(prev => ({ ...prev, dueDate: e.target.value }))}
-                    className="w-full p-3 bg-brand-100/50 border border-brand-200 rounded-xl text-sm font-body text-primary focus:ring-2 focus:ring-brand-100 outline-none"
+                  <DateTimePicker
+                    label="Fecha"
+                    dateValue={scheduleForm.dueDate}
+                    onChangeDate={(dueDate) => setScheduleForm(prev => ({ ...prev, dueDate }))}
+                    showTime={false}
+                    placeholder="Elegir fecha"
+                    className="min-w-0"
                   />
                 </div>
                 <div>

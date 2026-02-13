@@ -1,5 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Link2, X } from 'lucide-react';
+import {
+  Link2,
+  X,
+  Image,
+  FileText,
+  Film,
+  FileSpreadsheet,
+  FileType,
+  LayoutTemplate,
+  BarChart2,
+  Palette,
+  File,
+  Folder,
+  ChevronDown,
+} from 'lucide-react';
 import type {
   Resource,
   ResourceSource,
@@ -7,27 +21,43 @@ import type {
   ResourceStatus,
   ResourceEntityType,
 } from '../../types';
+import { buildFolderTree } from '../../services/resourceFolders';
+import type { ResourceFolder } from '../../types';
+import { Select } from '../tasks/Select';
 
-const SOURCE_OPTIONS: { value: ResourceSource; label: string }[] = [
-  { value: 'google_drive', label: 'Google Drive' },
-  { value: 'canva', label: 'Canva' },
-  { value: 'figma', label: 'Figma' },
-  { value: 'notion', label: 'Notion' },
-  { value: 'loom', label: 'Loom' },
-  { value: 'other', label: 'Otro' },
+interface FolderNode extends ResourceFolder {
+  children: FolderNode[];
+}
+
+function flattenFoldersForSelect(nodes: FolderNode[], depth = 0): { id: string; name: string }[] {
+  const result: { id: string; name: string }[] = [];
+  for (const node of nodes) {
+    result.push({ id: node.id, name: '  '.repeat(depth) + node.name });
+    result.push(...flattenFoldersForSelect(node.children, depth + 1));
+  }
+  return result;
+}
+
+const SOURCE_OPTIONS: { value: ResourceSource; label: string; icon: typeof File }[] = [
+  { value: 'google_drive', label: 'Google Drive', icon: Folder },
+  { value: 'canva', label: 'Canva', icon: Palette },
+  { value: 'figma', label: 'Figma', icon: Image },
+  { value: 'notion', label: 'Notion', icon: FileText },
+  { value: 'loom', label: 'Loom', icon: Film },
+  { value: 'other', label: 'Otro', icon: File },
 ];
 
-const TYPE_OPTIONS: { value: ResourceType; label: string }[] = [
-  { value: 'logo', label: 'Logo' },
-  { value: 'contract', label: 'Contrato' },
-  { value: 'deck', label: 'Deck' },
-  { value: 'template', label: 'Plantilla' },
-  { value: 'report', label: 'Informe' },
-  { value: 'image', label: 'Imagen' },
-  { value: 'video', label: 'Video' },
-  { value: 'spreadsheet', label: 'Hoja de cálculo' },
-  { value: 'doc', label: 'Documento' },
-  { value: 'other', label: 'Otro' },
+const TYPE_OPTIONS: { value: ResourceType; label: string; icon: typeof FileText }[] = [
+  { value: 'logo', label: 'Logo', icon: Image },
+  { value: 'contract', label: 'Contrato', icon: FileText },
+  { value: 'deck', label: 'Deck', icon: FileText },
+  { value: 'template', label: 'Plantilla', icon: LayoutTemplate },
+  { value: 'report', label: 'Informe', icon: BarChart2 },
+  { value: 'image', label: 'Imagen', icon: Image },
+  { value: 'video', label: 'Video', icon: Film },
+  { value: 'spreadsheet', label: 'Hoja', icon: FileSpreadsheet },
+  { value: 'doc', label: 'Documento', icon: FileType },
+  { value: 'other', label: 'Otro', icon: File },
 ];
 
 const STATUS_OPTIONS: { value: ResourceStatus; label: string }[] = [
@@ -44,6 +74,7 @@ export interface ResourceFormState {
   status: ResourceStatus;
   version: string;
   description: string;
+  folderId: string | null;
   linkToEntityType: ResourceEntityType | '';
   linkToEntityId: string;
   isPrimary: boolean;
@@ -57,6 +88,7 @@ const emptyForm: ResourceFormState = {
   status: 'draft',
   version: '',
   description: '',
+  folderId: null,
   linkToEntityType: '',
   linkToEntityId: '',
   isPrimary: false,
@@ -67,9 +99,13 @@ interface ResourceFormModalProps {
   onClose: () => void;
   onSave: (data: ResourceFormState) => Promise<void>;
   editingResource?: Resource | null;
-  /** Preselect entity when opening from SchoolDetail */
   presetEntity?: { entityType: ResourceEntityType; entityId: string };
+  defaultFolderId?: string | null;
+  folders?: ResourceFolder[];
 }
+
+const selectClass =
+  'w-full rounded-lg border border-brand-200/60 px-3 py-2 text-sm font-body text-primary focus:border-primary focus:outline-none bg-white';
 
 export function ResourceFormModal({
   isOpen,
@@ -77,12 +113,16 @@ export function ResourceFormModal({
   onSave,
   editingResource,
   presetEntity,
+  defaultFolderId = null,
+  folders = [],
 }: ResourceFormModalProps) {
   const [form, setForm] = useState<ResourceFormState>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
+      const folderId = defaultFolderId ?? null;
       if (editingResource) {
         setForm({
           title: editingResource.title,
@@ -92,6 +132,7 @@ export function ResourceFormModal({
           status: editingResource.status,
           version: editingResource.version ?? '',
           description: editingResource.description ?? '',
+          folderId: editingResource.folderId ?? null,
           linkToEntityType: presetEntity?.entityType ?? '',
           linkToEntityId: presetEntity?.entityId ?? '',
           isPrimary: false,
@@ -101,13 +142,14 @@ export function ResourceFormModal({
           ...emptyForm,
           linkToEntityType: presetEntity.entityType,
           linkToEntityId: presetEntity.entityId,
+          folderId,
           isPrimary: false,
         });
       } else {
-        setForm(emptyForm);
+        setForm({ ...emptyForm, folderId });
       }
     }
-  }, [isOpen, editingResource, presetEntity]);
+  }, [isOpen, editingResource, presetEntity, defaultFolderId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,234 +173,194 @@ export function ResourceFormModal({
 
   if (!isOpen) return null;
 
+  const tree = buildFolderTree(folders) as FolderNode[];
+  const flatFolders = flattenFoldersForSelect(tree);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between gap-2 mb-4">
-          <h2 className="text-lg font-bold text-primary flex items-center gap-2">
-            <Link2 className="w-5 h-5 text-brand-600" />
-            {editingResource ? 'Editar recurso' : 'Nuevo recurso'}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto">
+      <div className="w-full max-w-2xl rounded-2xl bg-white shadow-xl border border-brand-200/60 my-4 flex flex-col max-h-[calc(100vh-2rem)] overflow-hidden">
+        <div className="shrink-0 flex items-center justify-between gap-2 px-5 py-3 border-b border-brand-200/60">
+          <h2 className="text-lg font-title text-primary flex items-center gap-2">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Link2 className="w-5 h-5 text-primary" />
+            </div>
+            {editingResource ? 'Editar recurso' : 'Añadir archivo'}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-full text-brand-500 hover:bg-brand-100"
+            className="p-2 rounded-lg text-brand-500 hover:bg-brand-100/50 transition-colors"
             aria-label="Cerrar"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-brand-700 uppercase tracking-wide mb-1">
-                Título *
-              </label>
-              <input
-                type="text"
-                value={form.title}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, title: e.target.value }))
-                }
-                className="w-full rounded-lg border border-brand-200 px-3 py-2 text-sm text-primary focus:border-brand-500 focus:outline-none"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-brand-700 uppercase tracking-wide mb-1">
-                Tipo *
-              </label>
-              <select
-                value={form.type}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    type: e.target.value as ResourceType,
-                  }))
-                }
-                className="w-full rounded-lg border border-brand-200 px-3 py-2 text-sm text-primary focus:border-brand-500 focus:outline-none"
-              >
-                {TYPE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-brand-700 uppercase tracking-wide mb-1">
-              URL *
-            </label>
-            <input
-              type="url"
-              value={form.url}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, url: e.target.value }))
-              }
-              placeholder="https://..."
-              className="w-full rounded-lg border border-brand-200 px-3 py-2 text-sm text-primary focus:border-brand-500 focus:outline-none"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-brand-700 uppercase tracking-wide mb-1">
-                Origen
-              </label>
-              <select
-                value={form.source}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    source: e.target.value as ResourceSource,
-                  }))
-                }
-                className="w-full rounded-lg border border-brand-200 px-3 py-2 text-sm text-primary focus:border-brand-500 focus:outline-none"
-              >
-                {SOURCE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-brand-700 uppercase tracking-wide mb-1">
-                Estado
-              </label>
-              <select
-                value={form.status}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    status: e.target.value as ResourceStatus,
-                  }))
-                }
-                className="w-full rounded-lg border border-brand-200 px-3 py-2 text-sm text-primary focus:border-brand-500 focus:outline-none"
-              >
-                {STATUS_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-brand-700 uppercase tracking-wide mb-1">
-                Versión
-              </label>
-              <input
-                type="text"
-                value={form.version}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, version: e.target.value }))
-                }
-                placeholder="v1, 2026-final..."
-                className="w-full rounded-lg border border-brand-200 px-3 py-2 text-sm text-primary focus:border-brand-500 focus:outline-none"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-brand-700 uppercase tracking-wide mb-1">
-              Descripción
-            </label>
-            <textarea
-              value={form.description}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, description: e.target.value }))
-              }
-              rows={3}
-              className="w-full rounded-lg border border-brand-200 px-3 py-2 text-sm text-primary focus:border-brand-500 focus:outline-none"
-            />
-          </div>
-
-          {!editingResource && (
-            <div className="rounded-lg border border-brand-100 bg-brand-50/50 p-4 space-y-3">
-              <p className="text-xs font-bold text-brand-600 uppercase tracking-wide">
-                Vincular a entidad
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-brand-600 mb-1">
-                    Tipo de entidad
-                  </label>
-                  <select
-                    value={form.linkToEntityType}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        linkToEntityType: e.target
-                          .value as ResourceEntityType | '',
-                      }))
-                    }
-                    className="w-full rounded-lg border border-brand-200 px-3 py-2 text-sm text-primary focus:border-brand-500 focus:outline-none"
-                  >
-                    <option value="">— No vincular —</option>
-                    <option value="client">Cliente</option>
-                    <option value="deal">Deal</option>
-                    <option value="project">Proyecto</option>
-                    <option value="task">Tarea</option>
-                    <option value="internal">Interno</option>
-                  </select>
-                </div>
-                {form.linkToEntityType && form.linkToEntityType !== 'internal' && (
-                  <div>
-                    <label className="block text-xs text-brand-600 mb-1">
-                      ID entidad
-                    </label>
-                    <input
-                      type="text"
-                      value={form.linkToEntityId}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          linkToEntityId: e.target.value,
-                        }))
-                      }
-                      placeholder="UUID del cliente, deal..."
-                      className="w-full rounded-lg border border-brand-200 px-3 py-2 text-sm text-primary focus:border-brand-500 focus:outline-none"
-                    />
-                  </div>
-                )}
+        <form onSubmit={handleSubmit} className="flex flex-col min-h-0 overflow-y-auto">
+          <div className="p-5 space-y-4">
+            {/* Solo lo esencial: Enlace, Nombre, Carpeta */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-brand-600 mb-1">Enlace *</label>
+                <input
+                  type="url"
+                  value={form.url}
+                  onChange={(e) => setForm((prev) => ({ ...prev, url: e.target.value }))}
+                  placeholder="https://drive.google.com/..."
+                  className={`${selectClass} py-2.5`}
+                  required
+                />
               </div>
-              {form.linkToEntityType && (
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={form.isPrimary}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        isPrimary: e.target.checked,
-                      }))
-                    }
-                    className="rounded border-brand-300"
-                  />
-                  <span className="text-sm text-brand-700">
-                    Marcar como recurso principal para este tipo
-                  </span>
-                </label>
+              <div>
+                <label className="block text-xs font-bold text-brand-600 mb-1">Nombre *</label>
+                <input
+                  type="text"
+                  value={form.title}
+                  onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+                  placeholder="Ej: Contrato 2026, Deck..."
+                  className={`${selectClass} py-2.5`}
+                  required
+                />
+              </div>
+            </div>
+            <div>
+              <Select
+                label="Carpeta"
+                value={form.folderId ?? ''}
+                onChange={(v) => setForm((prev) => ({ ...prev, folderId: v || null }))}
+                placeholder="— Sin asignar —"
+                options={flatFolders.map((f) => ({ value: f.id, label: f.name }))}
+              />
+              {defaultFolderId && (
+                <p className="text-[11px] text-brand-500 mt-1">Por defecto: carpeta actual</p>
               )}
             </div>
-          )}
 
-          <div className="mt-6 flex justify-end gap-2">
+            {/* Tipo, Origen, Estado y más - opcionales en "Más opciones" */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowAdvanced((v) => !v)}
+                className="flex items-center gap-2 text-sm font-bold text-brand-500 hover:text-primary transition-colors"
+              >
+                <ChevronDown className={`w-4 h-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+                Más opciones
+              </button>
+              {showAdvanced && (
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4 pl-4 border-l-2 border-brand-200/60">
+                  <div>
+                    <Select
+                      label="Tipo"
+                      value={form.type}
+                      onChange={(v) => setForm((prev) => ({ ...prev, type: v as ResourceType }))}
+                      placeholder="Seleccionar tipo"
+                      options={TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                    />
+                  </div>
+                  <div>
+                    <Select
+                      label="Origen"
+                      value={form.source}
+                      onChange={(v) => setForm((prev) => ({ ...prev, source: v as ResourceSource }))}
+                      placeholder="Seleccionar origen"
+                      options={SOURCE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                    />
+                  </div>
+                  <div>
+                    <Select
+                      label="Estado"
+                      value={form.status}
+                      onChange={(v) => setForm((prev) => ({ ...prev, status: v as ResourceStatus }))}
+                      placeholder="Seleccionar estado"
+                      options={STATUS_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-brand-500 mb-1">Versión</label>
+                    <input
+                      type="text"
+                      value={form.version}
+                      onChange={(e) => setForm((prev) => ({ ...prev, version: e.target.value }))}
+                      placeholder="v1, 2026..."
+                      className={selectClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-500 mb-1">Descripción</label>
+                    <input
+                      type="text"
+                      value={form.description}
+                      onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                      placeholder="Opcional"
+                      className={selectClass}
+                    />
+                  </div>
+                  {!editingResource && (
+                    <>
+                      <div>
+                        <Select
+                          label="Vincular a"
+                          value={form.linkToEntityType}
+                          onChange={(v) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              linkToEntityType: v as ResourceEntityType | '',
+                            }))
+                          }
+                          placeholder="— No vincular —"
+                          options={[
+                            { value: 'client', label: 'Lead' },
+                            { value: 'deal', label: 'Deal' },
+                            { value: 'project', label: 'Proyecto' },
+                            { value: 'task', label: 'Tarea' },
+                            { value: 'internal', label: 'Interno' },
+                          ]}
+                        />
+                      </div>
+                      {form.linkToEntityType && form.linkToEntityType !== 'internal' && (
+                        <div>
+                          <label className="block text-xs font-bold text-brand-500 mb-1">ID entidad</label>
+                          <input
+                            type="text"
+                            value={form.linkToEntityId}
+                            onChange={(e) => setForm((prev) => ({ ...prev, linkToEntityId: e.target.value }))}
+                            placeholder="UUID"
+                            className={selectClass}
+                          />
+                        </div>
+                      )}
+                      {form.linkToEntityType && (
+                        <div className="sm:col-span-2 flex items-center">
+                          <label className="flex items-center gap-2 text-sm font-body">
+                            <input
+                              type="checkbox"
+                              checked={form.isPrimary}
+                              onChange={(e) => setForm((prev) => ({ ...prev, isPrimary: e.target.checked }))}
+                              className="rounded border-brand-300"
+                            />
+                            Marcar como principal
+                          </label>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="shrink-0 flex justify-end gap-3 p-4 border-t border-brand-200/60 bg-brand-50/30">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-brand-200 px-4 py-2 text-sm font-bold text-brand-700 hover:bg-brand-50"
+              className="rounded-xl border border-brand-200/60 px-4 py-2 text-sm font-bold text-brand-700 hover:bg-white transition-colors"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white hover:bg-brand-500 disabled:opacity-50"
+              className="rounded-xl bg-primary px-5 py-2 text-sm font-bold text-white hover:bg-brand-600 transition-colors disabled:opacity-50 shadow-md"
             >
               {saving ? 'Guardando...' : 'Guardar'}
             </button>

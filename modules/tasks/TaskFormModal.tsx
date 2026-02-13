@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { X } from 'lucide-react';
+import { X, Link2, User } from 'lucide-react';
 import type { WorkTask, WorkTaskPriority, WorkTaskLinkEntityType } from '../../types';
 import {
   createWorkTask,
@@ -12,6 +12,8 @@ import { listClients } from '../../services/crm/clients';
 import { listDeals } from '../../services/crm/deals';
 import { listProjects } from '../../services/crm/projects';
 import { isSupabaseConfigured } from '../../services/supabase';
+import { DateTimePicker } from './DateTimePicker';
+import { Select, type SelectOption } from './Select';
 
 type FormState = {
   title: string;
@@ -39,16 +41,33 @@ const emptyForm: FormState = {
   assigneeUserId: '',
 };
 
-function toFormState(t: WorkTask | null, defaultAssignee: string | null, presetLink?: { entityType: WorkTaskLinkEntityType; entityId: string }): FormState {
+function toFormState(
+  t: WorkTask | null,
+  defaultAssignee: string | null,
+  presetLink?: { entityType: WorkTaskLinkEntityType; entityId: string },
+  presetDueAt?: string | null
+): FormState {
   if (!t) {
-    const link = presetLink || { entityType: '' as WorkTaskLinkEntityType | '', entityId: '' };
     const linkType = (presetLink?.entityType ?? '') as WorkTaskLinkEntityType | '';
     const linkId = presetLink?.entityId ?? '';
+    let dueDate = '';
+    let dueTime = '';
+    if (presetDueAt) {
+      try {
+        const d = new Date(presetDueAt);
+        dueDate = d.toISOString().slice(0, 10);
+        dueTime = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      } catch {
+        // ignore
+      }
+    }
     return {
       ...emptyForm,
       assigneeUserId: defaultAssignee || '',
       linkEntityType: linkType,
       linkEntityId: linkId,
+      dueDate,
+      dueTime,
     };
   }
   const due = t.dueAt ? new Date(t.dueAt) : null;
@@ -116,6 +135,8 @@ interface TaskFormModalProps {
   initialTask: WorkTask | null;
   defaultAssigneeUserId: string | null;
   presetLink?: { entityType: WorkTaskLinkEntityType; entityId: string };
+  /** ISO date-time string to prefill due date/time when creating (e.g. from calendar day click). */
+  presetDueAt?: string | null;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -124,17 +145,18 @@ export default function TaskFormModal({
   initialTask,
   defaultAssigneeUserId,
   presetLink,
+  presetDueAt,
   onClose,
   onSaved,
 }: TaskFormModalProps) {
   const [form, setForm] = useState<FormState>(() =>
-    toFormState(initialTask, defaultAssigneeUserId, presetLink)
+    toFormState(initialTask, defaultAssigneeUserId, presetLink, presetDueAt)
   );
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setForm(toFormState(initialTask, defaultAssigneeUserId, presetLink));
-  }, [initialTask, defaultAssigneeUserId, presetLink]);
+    setForm(toFormState(initialTask, defaultAssigneeUserId, presetLink, presetDueAt));
+  }, [initialTask, defaultAssigneeUserId, presetLink, presetDueAt]);
 
   const { data: profiles = [] } = useQuery({
     queryKey: ['profiles'],
@@ -189,225 +211,210 @@ export default function TaskFormModal({
     }
   };
 
+  const inputClass =
+    'w-full rounded-xl border border-brand-200 bg-white px-4 py-3 text-sm text-primary placeholder:text-brand-400 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-shadow';
+  const labelClass = 'block text-xs font-semibold text-brand-600 uppercase tracking-wider mb-2';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between gap-2 mb-4">
-          <h2 className="text-lg font-bold text-primary">
-            {initialTask ? 'Edit task' : 'New task'}
-          </h2>
+    <>
+      <style>{`
+        @keyframes slideInRight {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
+        }
+      `}</style>
+      <div
+        className="fixed inset-0 z-40 bg-black/25"
+        aria-hidden
+        onClick={onClose}
+      />
+      {/* Panel 33% ancho a la derecha */}
+      <div
+        className="fixed top-0 bottom-0 right-0 z-50 h-screen flex flex-col bg-white animate-[slideInRight_0.25s_ease-out]"
+        style={{
+          width: 'min(33vw, 100vw)',
+          minWidth: '320px',
+          maxWidth: '100vw',
+          boxShadow: '-4px 0 24px rgba(11, 48, 100, 0.12)',
+        }}
+      >
+        <header className="shrink-0 flex items-center justify-between gap-3 px-6 py-4 border-b border-brand-100 bg-white">
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-full text-brand-500 hover:bg-brand-100"
-            aria-label="Close"
+            className="p-2 rounded-xl text-brand-500 hover:bg-brand-100 transition-colors"
+            aria-label="Cerrar"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-brand-700 uppercase tracking-wide mb-1">
-              Title *
-            </label>
-            <input
-              type="text"
-              value={form.title}
-              onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-              placeholder="Task title"
-              className="w-full rounded-xl border border-brand-200/60 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-brand-700 uppercase tracking-wide mb-1">
-              Description
-            </label>
-            <textarea
-              value={form.description}
-              onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-              rows={2}
-              className="w-full rounded-xl border border-brand-200/60 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-brand-700 uppercase tracking-wide mb-1">
-                Due date
-              </label>
-              <input
-                type="date"
-                value={form.dueDate}
-                onChange={(e) => setForm((p) => ({ ...p, dueDate: e.target.value }))}
-                className="w-full rounded-xl border border-brand-200/60 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-brand-700 uppercase tracking-wide mb-1">
-                Due time
-              </label>
-              <input
-                type="time"
-                value={form.dueTime}
-                onChange={(e) => setForm((p) => ({ ...p, dueTime: e.target.value }))}
-                className="w-full rounded-xl border border-brand-200/60 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-brand-700 uppercase tracking-wide mb-1">
-                Reminder date
-              </label>
-              <input
-                type="date"
-                value={form.remindDate}
-                onChange={(e) => setForm((p) => ({ ...p, remindDate: e.target.value }))}
-                className="w-full rounded-xl border border-brand-200/60 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-brand-700 uppercase tracking-wide mb-1">
-                Reminder time
-              </label>
-              <input
-                type="time"
-                value={form.remindTime}
-                onChange={(e) => setForm((p) => ({ ...p, remindTime: e.target.value }))}
-                className="w-full rounded-xl border border-brand-200/60 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-brand-700 uppercase tracking-wide mb-1">
-              Priority
-            </label>
-            <select
-              value={form.priority}
-              onChange={(e) => setForm((p) => ({ ...p, priority: e.target.value as WorkTaskPriority }))}
-              className="w-full rounded-xl border border-brand-200/60 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
-            >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-brand-700 uppercase tracking-wide mb-1">
-                Link to
-              </label>
-              <select
-                value={form.linkEntityType}
-                onChange={(e) =>
-                  setForm((p) => ({
-                    ...p,
-                    linkEntityType: e.target.value as WorkTaskLinkEntityType | '',
-                    linkEntityId: '',
-                  }))
-                }
-                className="w-full rounded-xl border border-brand-200/60 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
-              >
-                <option value="">— None —</option>
-                <option value="client">Client</option>
-                <option value="deal">Deal</option>
-                <option value="project">Project</option>
-                <option value="internal">Internal</option>
-              </select>
-            </div>
-            {form.linkEntityType === 'client' && (
+          <h2 className="text-lg font-bold text-primary">
+            {initialTask ? 'Editar tarea' : 'Nueva tarea'}
+          </h2>
+          <div className="w-9" aria-hidden />
+        </header>
+
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <div className="p-6 pb-8 space-y-5 min-h-full">
+              <h3 className="text-sm font-bold text-brand-500 uppercase tracking-wider pb-1">
+                Detalles de la tarea
+              </h3>
               <div>
-                <label className="block text-xs font-bold text-brand-700 uppercase tracking-wide mb-1">
-                  Client
-                </label>
-                <select
-                  value={form.linkEntityId}
-                  onChange={(e) => setForm((p) => ({ ...p, linkEntityId: e.target.value }))}
-                  className="w-full rounded-xl border border-brand-200/60 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
-                >
-                  <option value="">— Select —</option>
-                  {clients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                <label className={labelClass}>Título *</label>
+                <input
+                  type="text"
+                  value={form.title}
+                  onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+                  placeholder="Nombre de la tarea"
+                  className={inputClass}
+                  required
+                />
               </div>
-            )}
-            {form.linkEntityType === 'deal' && (
+
               <div>
-                <label className="block text-xs font-bold text-brand-700 uppercase tracking-wide mb-1">
-                  Deal
-                </label>
-                <select
-                  value={form.linkEntityId}
-                  onChange={(e) => setForm((p) => ({ ...p, linkEntityId: e.target.value }))}
-                  className="w-full rounded-xl border border-brand-200/60 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
-                >
-                  <option value="">— Select —</option>
-                  {deals.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.title} {d.clientName ? `(${d.clientName})` : ''}
-                    </option>
-                  ))}
-                </select>
+                <label className={labelClass}>Descripción</label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                  rows={2}
+                  placeholder="Añade detalles..."
+                  className={`${inputClass} resize-none`}
+                />
               </div>
-            )}
-            {form.linkEntityType === 'project' && (
+
+              {/* Prioridad */}
               <div>
-                <label className="block text-xs font-bold text-brand-700 uppercase tracking-wide mb-1">
-                  Project
-                </label>
-                <select
-                  value={form.linkEntityId}
-                  onChange={(e) => setForm((p) => ({ ...p, linkEntityId: e.target.value }))}
-                  className="w-full rounded-xl border border-brand-200/60 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
-                >
-                  <option value="">— Select —</option>
-                  {projects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.title} {p.clientName ? `(${p.clientName})` : ''}
-                    </option>
+                <label className={labelClass}>Prioridad</label>
+                <div className="flex gap-2">
+                  {(['low', 'medium', 'high'] as const).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, priority: p }))}
+                      className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition-all ${
+                        form.priority === p
+                          ? p === 'high'
+                            ? 'bg-red-100 text-red-700 ring-2 ring-red-200'
+                            : p === 'medium'
+                            ? 'bg-amber-100 text-amber-700 ring-2 ring-amber-200'
+                            : 'bg-brand-100 text-primary ring-2 ring-brand-200'
+                          : 'bg-brand-50/80 text-brand-600 hover:bg-brand-100'
+                      }`}
+                    >
+                      {p === 'high' ? 'Alta' : p === 'medium' ? 'Media' : 'Baja'}
+                    </button>
                   ))}
-                </select>
+                </div>
               </div>
-            )}
+
+              {/* Fechas en 2 columnas */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <DateTimePicker
+                  label="Vencimiento"
+                  dateValue={form.dueDate}
+                  timeValue={form.dueTime}
+                  onChangeDate={(v) => setForm((p) => ({ ...p, dueDate: v }))}
+                  onChangeTime={(v) => setForm((p) => ({ ...p, dueTime: v }))}
+                  placeholder="Fecha y hora"
+                />
+                <DateTimePicker
+                  label="Recordatorio"
+                  dateValue={form.remindDate}
+                  timeValue={form.remindTime}
+                  onChangeDate={(v) => setForm((p) => ({ ...p, remindDate: v }))}
+                  onChangeTime={(v) => setForm((p) => ({ ...p, remindTime: v }))}
+                  placeholder="Fecha y hora"
+                />
+              </div>
+
+              {/* Vinculación */}
+              <div className="space-y-4">
+                <Select
+                  label="Vincular a"
+                  value={form.linkEntityType}
+                  options={[
+                    { value: 'client', label: 'Lead' },
+                    { value: 'deal', label: 'Deal' },
+                    { value: 'project', label: 'Proyecto' },
+                    { value: 'internal', label: 'Interno' },
+                  ]}
+                  onChange={(v) =>
+                    setForm((p) => ({
+                      ...p,
+                      linkEntityType: v as WorkTaskLinkEntityType | '',
+                      linkEntityId: '',
+                    }))
+                  }
+                  placeholder="Ninguno"
+                  icon={<Link2 className="w-4 h-4" />}
+                />
+                {form.linkEntityType === 'client' && (
+                  <Select
+                    label="Lead"
+                    value={form.linkEntityId}
+                    options={clients.map((c) => ({ value: c.id, label: c.name }))}
+                    onChange={(v) => setForm((p) => ({ ...p, linkEntityId: v }))}
+                    placeholder="Seleccionar lead"
+                  />
+                )}
+                {form.linkEntityType === 'deal' && (
+                  <Select
+                    label="Deal"
+                    value={form.linkEntityId}
+                    options={deals.map((d) => ({
+                      value: d.id,
+                      label: `${d.title}${d.clientName ? ` (${d.clientName})` : ''}`,
+                    }))}
+                    onChange={(v) => setForm((p) => ({ ...p, linkEntityId: v }))}
+                    placeholder="Seleccionar deal"
+                  />
+                )}
+                {form.linkEntityType === 'project' && (
+                  <Select
+                    label="Proyecto"
+                    value={form.linkEntityId}
+                    options={projects.map((p) => ({
+                      value: p.id,
+                      label: `${p.title}${p.clientName ? ` (${p.clientName})` : ''}`,
+                    }))}
+                    onChange={(v) => setForm((p) => ({ ...p, linkEntityId: v }))}
+                    placeholder="Seleccionar proyecto"
+                  />
+                )}
+              </div>
+
+              <Select
+                label="Asignado a"
+                value={form.assigneeUserId}
+                options={profiles.map((p) => ({
+                  value: p.id,
+                  label: p.displayName || p.email || p.id,
+                }))}
+                onChange={(v) => setForm((p) => ({ ...p, assigneeUserId: v }))}
+                placeholder="Sin asignar"
+                icon={<User className="w-4 h-4" />}
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-bold text-brand-700 uppercase tracking-wide mb-1">
-              Assignee
-            </label>
-            <select
-              value={form.assigneeUserId}
-              onChange={(e) => setForm((p) => ({ ...p, assigneeUserId: e.target.value }))}
-              className="w-full rounded-xl border border-brand-200/60 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
-            >
-              <option value="">— Unassigned —</option>
-              {profiles.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.displayName || p.email || p.id}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
+
+          <footer className="shrink-0 flex gap-3 p-6 border-t border-brand-100 bg-white">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl border border-brand-200/60 px-4 py-2 text-sm font-bold text-brand-700 hover:bg-brand-100/50"
+              className="flex-1 rounded-xl border border-brand-200 py-3 text-sm font-semibold text-brand-700 hover:bg-brand-50 transition-colors"
             >
-              Cancel
+              Cancelar
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white hover:bg-brand-100/500 disabled:opacity-50"
+              className="flex-1 rounded-xl bg-primary py-3 text-sm font-semibold text-white shadow-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
-              {saving ? 'Saving...' : initialTask ? 'Save' : 'Create'}
+              {saving ? 'Guardando...' : initialTask ? 'Guardar' : 'Crear tarea'}
             </button>
-          </div>
+          </footer>
         </form>
       </div>
-    </div>
+    </>
   );
 }

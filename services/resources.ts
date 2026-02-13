@@ -23,6 +23,7 @@ interface ResourceRow {
   owner_user_id: string | null;
   description: string | null;
   ai_summary: string | null;
+  folder_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -56,6 +57,7 @@ function mapResource(row: ResourceRow): Resource {
     ownerUserId: row.owner_user_id ?? null,
     description: row.description ?? null,
     aiSummary: row.ai_summary ?? null,
+    folderId: row.folder_id ? String(row.folder_id) : null,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };
@@ -89,6 +91,7 @@ export interface GetResourcesParams {
   entityId?: string | null;
   onlyPrimary?: boolean;
   search?: string;
+  folderId?: string | null;
 }
 
 export async function getResources(
@@ -150,6 +153,13 @@ export async function getResources(
     query = query.or(
       `title.ilike.${term},description.ilike.${term},ai_summary.ilike.${term}`
     );
+  }
+  if (params?.folderId !== undefined) {
+    if (params.folderId === null) {
+      query = query.is('folder_id', null);
+    } else {
+      query = query.eq('folder_id', params.folderId);
+    }
   }
 
   const { data, error } = await query;
@@ -239,6 +249,38 @@ export async function getResourcesByEntity(
   return { primary, others };
 }
 
+/** Recursos visibles para un cliente: vinculados por resource_links Y recursos en carpetas del cliente (resource_folders.school_id) */
+export async function getResourcesForClient(clientId: string): Promise<ResourceWithLinks[]> {
+  if (!isSupabaseConfigured() || !supabase) return [];
+
+  const { getFolderIdsForClient } = await import('./resourceFolders');
+  const linked = await getResourcesByEntity('client', clientId);
+  const linkedList: ResourceWithLinks[] = [...linked.primary, ...linked.others];
+  const byId = new Map<string, ResourceWithLinks>();
+  for (const r of linkedList) byId.set(r.id, r);
+
+  const folderIds = await getFolderIdsForClient(clientId);
+  if (folderIds.length > 0) {
+    const { data: folderResources, error } = await supabase
+      .from('resources')
+      .select('*')
+      .in('folder_id', folderIds)
+      .order('updated_at', { ascending: false });
+
+    if (!error && folderResources?.length) {
+      for (const row of folderResources as ResourceRow[]) {
+        if (byId.has(row.id)) continue;
+        byId.set(row.id, {
+          ...mapResource(row),
+          links: [],
+        });
+      }
+    }
+  }
+
+  return Array.from(byId.values());
+}
+
 export interface CreateResourceData {
   title: string;
   url: string;
@@ -248,6 +290,7 @@ export interface CreateResourceData {
   version?: string | null;
   description?: string | null;
   ownerUserId?: string | null;
+  folderId?: string | null;
   linkTo?: { entityType: ResourceEntityType; entityId: string | null };
   isPrimary?: boolean;
   aliases?: string[];
@@ -269,6 +312,7 @@ export async function createResource(
       version: data.version ?? null,
       description: data.description ?? null,
       owner_user_id: data.ownerUserId ?? null,
+      folder_id: data.folderId ?? null,
     })
     .select()
     .single();
@@ -311,6 +355,7 @@ export async function updateResource(
       | 'version'
       | 'description'
       | 'ownerUserId'
+      | 'folderId'
     >
   >
 ): Promise<Resource | null> {
@@ -325,6 +370,7 @@ export async function updateResource(
   if (partial.version !== undefined) row.version = partial.version;
   if (partial.description !== undefined) row.description = partial.description;
   if (partial.ownerUserId !== undefined) row.owner_user_id = partial.ownerUserId;
+  if (partial.folderId !== undefined) row.folder_id = partial.folderId;
 
   const { data, error } = await supabase
     .from('resources')
@@ -343,6 +389,19 @@ export async function updateResource(
 
 export async function archiveResource(id: string): Promise<boolean> {
   return updateResource(id, { status: 'archived' }) !== null;
+}
+
+/** Eliminar recurso permanentemente */
+export async function deleteResource(id: string): Promise<boolean> {
+  if (!isSupabaseConfigured() || !supabase) return false;
+
+  const { error } = await supabase.from('resources').delete().eq('id', id);
+
+  if (error) {
+    console.error('deleteResource error', error);
+    return false;
+  }
+  return true;
 }
 
 export async function linkResource(

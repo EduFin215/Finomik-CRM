@@ -34,6 +34,7 @@ import {
 } from '../services/crm/dashboard';
 import type { ClientType } from '../types';
 import { COLORS } from '../constants';
+import { Select } from '../modules/tasks/Select';
 
 const DATE_RANGE_OPTIONS: { key: DateRangeKey; label: string }[] = [
   { key: 'last30', label: 'Last 30 days' },
@@ -101,7 +102,7 @@ const Dashboard: React.FC = () => {
         <div>
           <h2 className="text-xl sm:text-2xl font-title text-primary">CRM Dashboard</h2>
           <p className="text-brand-500 font-body text-sm sm:text-base">
-            Overview of clients, pipeline, and activity.
+            Overview of leads, pipeline, and activity.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -122,19 +123,13 @@ const Dashboard: React.FC = () => {
               </button>
             ))}
           </div>
-          <span className="text-brand-500 text-xs font-bold uppercase ml-2">Type</span>
-          <select
+          <Select
             value={clientType}
-            onChange={(e) => setClientType((e.target.value || '') as ClientType | '')}
-            className="rounded-xl border border-brand-200/60 bg-white px-3 py-2 text-sm font-body text-primary"
-          >
-            <option value="">All</option>
-            {CLIENT_TYPES.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setClientType((v || '') as ClientType | '')}
+            placeholder="All"
+            options={CLIENT_TYPES.map((o) => ({ value: o.value, label: o.label }))}
+            className="min-w-[120px]"
+          />
         </div>
       </div>
 
@@ -149,7 +144,7 @@ const Dashboard: React.FC = () => {
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
             <button
               type="button"
-              onClick={() => navigate('/crm/clients')}
+              onClick={() => navigate('/crm/leads')}
               className="bg-white p-4 rounded-2xl border border-brand-200/60 shadow-card text-left hover:shadow-md transition-all"
             >
               <div className="flex items-center gap-2 mb-2">
@@ -157,12 +152,12 @@ const Dashboard: React.FC = () => {
                   <Users size={18} />
                 </div>
               </div>
-              <p className="text-brand-500 text-xs font-bold">Total Clients</p>
+              <p className="text-brand-500 text-xs font-bold">Total Leads</p>
               <p className="text-lg font-extrabold text-primary">{m.totalClients}</p>
             </button>
             <button
               type="button"
-              onClick={() => navigate('/crm/clients')}
+              onClick={() => navigate('/crm/leads')}
               className="bg-white p-4 rounded-2xl border border-brand-200/60 shadow-card text-left hover:shadow-md transition-all"
             >
               <div className="flex items-center gap-2 mb-2">
@@ -304,7 +299,7 @@ const Dashboard: React.FC = () => {
               )}
             </div>
             <div className="bg-white p-4 sm:p-6 rounded-2xl border border-brand-200/60 shadow-card min-w-0">
-              <h3 className="font-subtitle text-primary mb-4">New Clients by Month</h3>
+              <h3 className="font-subtitle text-primary mb-4">New Leads by Month</h3>
               {m.newClientsByMonth.length === 0 ? (
                 <p className="py-8 text-center text-brand-500 text-sm">No data in this period.</p>
               ) : (
@@ -315,7 +310,7 @@ const Dashboard: React.FC = () => {
                       <XAxis dataKey="month" fontSize={11} tickFormatter={(v) => v.slice(0, 7)} />
                       <YAxis fontSize={11} />
                       <Tooltip labelFormatter={(l) => l?.slice(0, 7)} />
-                      <Line type="monotone" dataKey="count" stroke={COLORS.brand[400]} strokeWidth={2} dot={{ r: 3 }} name="New clients" />
+                      <Line type="monotone" dataKey="count" stroke={COLORS.brand[400]} strokeWidth={2} dot={{ r: 3 }} name="New leads" />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -325,9 +320,9 @@ const Dashboard: React.FC = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="bg-white p-4 sm:p-6 rounded-2xl border border-brand-200/60 shadow-card">
-              <h3 className="font-subtitle text-primary mb-4">Latest Updated Clients</h3>
-              {m.latestUpdatedClients.length === 0 ? (
-                <p className="py-6 text-center text-brand-500 text-sm">No clients yet.</p>
+<h3 className="font-subtitle text-primary mb-4">Latest Updated Leads</h3>
+            {m.latestUpdatedClients.length === 0 ? (
+                <p className="py-6 text-center text-brand-500 text-sm">No leads yet.</p>
               ) : (
                 <ul className="divide-y divide-brand-100">
                   {m.latestUpdatedClients.map((c) => (
@@ -335,7 +330,7 @@ const Dashboard: React.FC = () => {
                       <span className="font-medium text-primary truncate">{c.name}</span>
                       <button
                         type="button"
-                        onClick={() => navigate(`/crm/clients/${c.id}`)}
+                        onClick={() => navigate(`/crm/leads/${c.id}`)}
                         className="shrink-0 p-1.5 text-brand-500 hover:text-primary hover:bg-brand-100/50 rounded-xl transition-colors"
                       >
                         <ChevronRight size={16} />
