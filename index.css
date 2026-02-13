@@ -4,29 +4,59 @@
 
 @layer base {
   :root {
-    --color-primary: #0B3064;
-    --color-white: #FFFFFF;
-    --color-brand-100: #C8D0DD;
-    --color-brand-200: #8F9EB7;
-    --color-brand-300: #5574A7;
-    --color-brand-400: #3E5374;
-    --color-brand-500: #3C4C67;
-    --color-brand-600: #0B3064;
+    /* Brand Palette */
+    --color-primary: #0B3064;      /* Deep Navy */
+    --color-secondary: #114076;    /* Secondary Dark */
+    --color-brand-muted: #3C4C67;  /* Secondary Muted */
+    --color-brand-mid: #3E5374;    /* Secondary Mid */
+    --color-accent: #5574A7;       /* Accent */
+    --color-soft: #8F9EB7;         /* Soft */
+    --color-very-soft: #C8D0DD;    /* Very Soft */
+    --color-white: #FFFFFF;        /* Base */
+
+    /* UI Logic */
     --radius-sm: 8px;
     --radius-md: 12px;
     --radius-lg: 16px;
     --radius-xl: 20px;
-    --shadow-card: 0 1px 3px 0 rgb(11 48 100 / 0.06), 0 1px 2px -1px rgb(11 48 100 / 0.06);
-    --shadow-dropdown: 0 10px 15px -3px rgb(11 48 100 / 0.08), 0 4px 6px -4px rgb(11 48 100 / 0.06);
+    
+    /* Shadows */
+    --shadow-card: 0 4px 6px -1px rgb(11 48 100 / 0.1), 0 2px 4px -1px rgb(11 48 100 / 0.06);
+    --shadow-dropdown: 0 10px 15px -3px rgb(11 48 100 / 0.1), 0 4px 6px -2px rgb(11 48 100 / 0.05);
+    
+    /* Effects */
     --blur-glass: 12px;
   }
-  /* Titles: Montserrat Extrabold (800) */
+
+  body {
+    background-color: #F8FAFC; /* Slate-50 equivalent for contrast against Deep Navy sidebar */
+    color: var(--color-primary);
+  }
+
+  /* Typography - Strict Montserrat */
   .font-title { font-family: 'Montserrat', sans-serif; font-weight: 800; }
-  /* Subtitles: Montserrat Bold (700) */
   .font-subtitle { font-family: 'Montserrat', sans-serif; font-weight: 700; }
-  /* Body: Montserrat Regular (400) - default */
   .font-body { font-family: 'Montserrat', sans-serif; font-weight: 400; }
-  /* Mejor scroll en móvil */
+
+  /* Utilities */
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+  }
+  
+  .glass-sidebar {
+    background: linear-gradient(180deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+    color: var(--color-white);
+  }
+
+  /* Scrollbar override */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--color-soft); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-accent); }
+
   @media (max-width: 1023px) {
     .overflow-x-auto { -webkit-overflow-scrolling: touch; }
   }

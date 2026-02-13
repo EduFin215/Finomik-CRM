@@ -101,8 +101,17 @@ export async function getFinanceDashboardKpis(
     startingCash != null
       ? startingCash + (await getCumulativeNetToDate(thisMonth.to))
       : null;
-  const forecastNext30Days =
-    cashPosition != null ? cashPosition + (incomeThisMonth - expensesThisMonth) : netResultThisMonth;
+
+  // Improved Forecast Logic: Cash Position + Projected Net Change in next 30 days
+  let forecastNext30Days = 0;
+  if (cashPosition !== null) {
+    const projection = await getForecastProjection(30);
+    if (projection.length > 0) {
+      forecastNext30Days = projection[projection.length - 1].projectedCash;
+    } else {
+      forecastNext30Days = cashPosition;
+    }
+  }
 
   return {
     incomeThisMonth,
@@ -222,10 +231,21 @@ export async function getForecastProjection(days = 90): Promise<ForecastDay[]> {
     .select('amount, due_date')
     .in('status', ['sent', 'overdue'])
     .not('due_date', 'is', null);
+
   const { data: contracts } = await supabase
     .from('finance_contracts')
     .select('amount, frequency')
     .eq('status', 'active');
+
+  // Pending one-off expenses
+  const { data: pendingExpenses } = await supabase
+    .from('finance_expenses')
+    .select('amount, due_date')
+    .eq('status', 'pending')
+    .eq('is_recurring', false)
+    .not('due_date', 'is', null);
+
+  // Recurring expenses
   const { data: recurringExpenses } = await supabase
     .from('finance_expenses')
     .select('amount, due_date')
@@ -234,15 +254,22 @@ export async function getForecastProjection(days = 90): Promise<ForecastDay[]> {
 
   const dailyIncome = new Map<string, number>();
   const dailyExpense = new Map<string, number>();
+
+  // 1. One-off Invoices (Income)
   for (const inv of unpaidInvoices ?? []) {
     const d = String(inv.due_date).slice(0, 10);
-    dailyIncome.set(d, (dailyIncome.get(d) ?? 0) + Number(inv.amount));
+    // Only include if date is in future/today (or past due and we assume it comes in soon? Let's just put it on due date for now, or today if overdue)
+    // For simplicity, map to due date. If overdue, maybe map to today?
+    const targetDate = d < today ? today : d;
+    dailyIncome.set(targetDate, (dailyIncome.get(targetDate) ?? 0) + Number(inv.amount));
   }
+
+  // 2. Contracts (Recurring Income)
   for (const c of contracts ?? []) {
     const amount = Number(c.amount);
     const freq = String(c.frequency);
     const perMonth = freq === 'yearly' ? amount / 12 : freq === 'quarterly' ? amount / 3 : amount;
-    const perDay = perMonth / 30;
+    const perDay = perMonth / 30; // Linear projection for contracts
     for (let i = 0; i < days; i++) {
       const d = new Date();
       d.setDate(d.getDate() + i);
@@ -250,9 +277,35 @@ export async function getForecastProjection(days = 90): Promise<ForecastDay[]> {
       dailyIncome.set(key, (dailyIncome.get(key) ?? 0) + perDay);
     }
   }
+
+  // 3. One-off Pending Expenses
+  for (const e of pendingExpenses ?? []) {
+    const d = String(e.due_date).slice(0, 10);
+    const targetDate = d < today ? today : d;
+    dailyExpense.set(targetDate, (dailyExpense.get(targetDate) ?? 0) + Number(e.amount));
+  }
+
+  // 4. Recurring Expenses
   for (const e of recurringExpenses ?? []) {
     const d = e.due_date ? String(e.due_date).slice(0, 10) : today;
-    dailyExpense.set(d, (dailyExpense.get(d) ?? 0) + Number(e.amount));
+    // For recurring expenses, we might want to project them occurring every X period from the due date?
+    // Current logic just puts them on the due date. If it's recurring, it should recur.
+    // The previous implementation was: dailyExpense.set(d, ...). This only counts it once!
+    // We need to project it forward.
+    // Simplifying assumption: if it's monthly, it happens on same day next month.
+
+    // For now, let's keep the linear projection or "same day" logic.
+    // Let's do "same day of month" projection for 90 days.
+    const startObj = new Date(d);
+    let current = new Date(startObj);
+    while (current < new Date(new Date().setDate(new Date().getDate() + days))) {
+      const key = current.toISOString().slice(0, 10);
+      if (key >= today) {
+        dailyExpense.set(key, (dailyExpense.get(key) ?? 0) + Number(e.amount));
+      }
+      // Increment by 1 month (assuming monthly for all recurring items effectively for now, or just map 'is_recurring' to monthly)
+      current.setMonth(current.getMonth() + 1);
+    }
   }
 
   const result: ForecastDay[] = [];

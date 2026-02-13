@@ -1,12 +1,13 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { CalendarEvent } from '../types';
-import { ClockIcon, ChevronLeftIcon, ChevronRightIcon, CheckCircleIcon, PlusIcon, XMarkIcon, CalendarIcon, BellIcon } from '@heroicons/react/24/solid';
+import { Clock, ChevronLeft, ChevronRight, CheckCircle, Plus, Calendar as CalendarIcon, Bell } from 'lucide-react';
 import { isGoogleCalendarConfigured, getStoredToken, requestGoogleCalendarAuth, fetchCalendarEvents } from '../services/googleCalendar';
 import { getUpcomingReminderItems } from '../hooks/useUpcomingReminders';
 import { useCRM } from '../context/CRMContext';
 import { isSupabaseConfigured } from '../services/supabase';
 import { DateTimePicker } from '../modules/tasks/DateTimePicker';
 import { Select } from '../modules/tasks/Select';
+import { Modal } from './ui/Modal';
 
 const defaultMeetingDate = () => new Date().toISOString().split('T')[0];
 const defaultMeetingTime = '10:00';
@@ -158,10 +159,10 @@ const CalendarView: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 flex-1 min-h-0 overflow-hidden">
-        <div className="lg:col-span-3 bg-white rounded-2xl sm:rounded-3xl border border-brand-200 overflow-hidden flex flex-col shadow-sm min-w-0">
-          <div className="grid grid-cols-7 border-b border-brand-100 bg-brand-100/30">
+        <div className="lg:col-span-3 bg-white rounded-card border border-brand-very-soft/50 overflow-hidden flex flex-col shadow-card min-w-0">
+          <div className="grid grid-cols-7 border-b border-brand-very-soft/50 bg-brand-very-soft/20">
             {days.map(d => (
-              <div key={d} className="py-2 sm:py-4 text-center text-[10px] sm:text-[11px] font-extrabold text-brand-400 uppercase tracking-widest">{d}</div>
+              <div key={d} className="py-3 sm:py-4 text-center text-[10px] sm:text-[11px] font-extrabold text-brand-mid uppercase tracking-widest">{d}</div>
             ))}
           </div>
           <div className="grid grid-cols-7 flex-1 auto-rows-fr min-h-[280px]">
@@ -170,14 +171,14 @@ const CalendarView: React.FC = () => {
               const isToday = dayNum !== null && isTodayCell(dayNum);
 
               return (
-                <div key={i} className={`min-h-[60px] sm:min-h-[80px] lg:min-h-[120px] border-r border-b border-brand-100 p-1 sm:p-2 relative transition-colors hover:bg-brand-100/30 ${i % 7 === 6 ? 'border-r-0' : ''}`}>
+                <div key={i} className={`min-h-[60px] sm:min-h-[80px] lg:min-h-[120px] border-r border-b border-brand-very-soft/30 p-1 sm:p-2 relative transition-colors hover:bg-brand-very-soft/10 ${i % 7 === 6 ? 'border-r-0' : ''}`}>
                   {dayNum !== null && (
                     <>
                       <div className="flex justify-between items-start mb-2">
-                        <span className={`text-xs font-bold w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-primary text-white shadow-lg' : 'text-brand-400'}`}>
+                        <span className={`text-xs font-bold w-7 h-7 flex items-center justify-center rounded-full transition-all ${isToday ? 'bg-primary text-white shadow-glow scale-110' : 'text-brand-muted'}`}>
                           {dayNum}
                         </span>
-                        {dayEvents.length > 0 && <span className="text-[9px] font-bold text-brand-400">{dayEvents.length} eventos</span>}
+                        {dayEvents.length > 0 && <span className="text-[9px] font-bold text-brand-soft">{dayEvents.length} eventos</span>}
                       </div>
 
                       <div className="space-y-1.5">
@@ -185,16 +186,18 @@ const CalendarView: React.FC = () => {
                           <div
                             key={event.id}
                             className={`
-                              px-2 py-1.5 rounded-lg text-[10px] font-bold truncate cursor-pointer transition-transform hover:scale-105 shadow-sm border
-                              ${event.type === 'google_event' ? 'bg-brand-100 text-brand-500 border-brand-200' : ''}
-                              ${event.type === 'crm_meeting' ? 'bg-purple-100 text-purple-700 border-purple-200' : ''}
-                              ${event.type === 'crm_task' ? 'bg-white text-brand-600 border-brand-200' : ''}
+                              px-2 py-1.5 rounded-lg text-[10px] font-bold truncate cursor-pointer transition-all hover:scale-[1.02] shadow-sm border
+                              ${event.type === 'google_event' ? 'bg-brand-very-soft/30 text-brand-mid border-brand-very-soft/50' : ''}
+                              ${event.type === 'crm_meeting' ? 'bg-purple-50 text-purple-700 border-purple-100' : ''}
+                              ${event.type === 'crm_task' ? 'bg-white text-primary border-brand-very-soft/60 shadow-[0_2px_4px_rgba(0,0,0,0.02)]' : ''}
                             `}
                             onClick={() => event.schoolId && setSelectedSchoolId(event.schoolId)}
                           >
-                            <div className="flex items-center gap-1">
-                              <Clock size={10} className="opacity-50" />
-                              {event.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            <div className="flex items-center gap-1.5">
+                              <div className={`w-1.5 h-1.5 rounded-full ${event.type === 'google_event' ? 'bg-brand-mid' :
+                                event.type === 'crm_meeting' ? 'bg-purple-500' : 'bg-primary'
+                                }`} />
+                              <span className="opacity-75 font-medium">{event.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
                             {event.title}
                           </div>
@@ -209,15 +212,15 @@ const CalendarView: React.FC = () => {
         </div>
 
         <div className="space-y-6 flex flex-col h-full overflow-hidden">
-          <div className="bg-amber-50 border border-amber-200 rounded-3xl p-5 shadow-sm shrink-0">
+          <div className="bg-amber-50/80 border border-amber-100 rounded-card p-5 shadow-sm shrink-0 backdrop-blur-sm">
             <div className="flex items-center gap-2 mb-4">
               <Bell className="w-5 h-5 text-amber-600" />
               <h3 className="font-bold text-primary text-sm">Próximos recordatorios</h3>
             </div>
-            <div className="space-y-2 max-h-48 overflow-y-auto">
+            <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-amber-200">
               {upcomingReminders.length === 0 ? (
-                <p className="text-xs text-brand-400 font-body py-2">
-                  No hay tareas ni reuniones en la ventana de aviso. Configura el tiempo en Configuración.
+                <p className="text-xs text-brand-muted font-body py-2">
+                  No hay tareas ni reuniones en la ventana de aviso.
                 </p>
               ) : (
                 upcomingReminders.map((r, i) => (
@@ -225,35 +228,36 @@ const CalendarView: React.FC = () => {
                     key={`${r.at.getTime()}-${r.title}-${i}`}
                     type="button"
                     onClick={() => setSelectedSchoolId(r.schoolId)}
-                    className="w-full text-left p-3 rounded-xl border border-amber-200 bg-white hover:bg-amber-50 hover:border-amber-300 transition-all"
+                    className="w-full text-left p-3 rounded-xl border border-amber-200/60 bg-white hover:bg-amber-50 hover:border-amber-300 transition-all shadow-sm group"
                   >
-                    <p className="text-xs font-bold text-primary leading-tight">{r.title}</p>
-                    <p className="text-[10px] text-brand-400 mt-0.5 font-body">{r.schoolName}</p>
-                    <p className="text-[10px] text-amber-600 font-body mt-1">
+                    <p className="text-xs font-bold text-primary leading-tight group-hover:text-amber-700 transition-colors">{r.title}</p>
+                    <p className="text-[10px] text-brand-muted mt-0.5 font-body">{r.schoolName}</p>
+                    <p className="text-[10px] text-amber-600 font-body mt-1 flex items-center gap-1">
+                      <span className="w-1 h-1 rounded-full bg-amber-500"></span>
                       {r.isMeeting ? 'Reunión' : 'Tarea'} · {r.at.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </button>
                 ))
               )}
             </div>
-            <p className="text-[10px] text-brand-400 font-body mt-2">Incluye tareas y follow-ups. Las notificaciones del navegador se configuran en Configuración.</p>
           </div>
 
-          <div className="bg-gradient-to-br from-primary to-brand-600 rounded-3xl p-6 text-white shadow-xl shrink-0">
-            <div className="flex items-center justify-between mb-6">
+          <div className="bg-gradient-sidebar rounded-card p-6 text-white shadow-card-hover shrink-0 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none transition-transform group-hover:scale-150 duration-700"></div>
+            <div className="flex items-center justify-between mb-6 relative z-10">
               <h3 className="font-bold text-lg">Próximas Reuniones</h3>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 relative z-10">
               {allEvents.filter(e => e.type !== 'crm_task' && e.start >= today).slice(0, 3).map(event => (
                 <div key={event.id} className="flex gap-3 items-start relative">
                   <div className="flex flex-col items-center gap-1 min-w-[3rem]">
-                    <span className="text-xs font-medium opacity-60">{event.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span className="text-xs font-medium opacity-80">{event.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     <div className="w-0.5 h-full bg-white/10 absolute left-[1.4rem] top-5 -z-0"></div>
                   </div>
-                  <div className={`p-3 rounded-xl w-full border border-white/10 ${event.type === 'google_event' ? 'bg-white/5' : 'bg-purple-500/20 border-purple-400/30'}`}>
+                  <div className={`p-3 rounded-xl w-full border backdrop-blur-sm transition-transform hover:translate-x-1 ${event.type === 'google_event' ? 'bg-white/10 border-white/10' : 'bg-accent/20 border-white/20 shadow-glow'}`}>
                     <p className="font-bold text-sm leading-tight">{event.title}</p>
-                    {event.schoolName && <p className="text-[10px] text-white/60 mt-1">{event.schoolName}</p>}
+                    {event.schoolName && <p className="text-[10px] text-white/70 mt-1 flex items-center gap-1"><span className="w-1 h-1 bg-white/50 rounded-full" /> {event.schoolName}</p>}
                   </div>
                 </div>
               ))}
@@ -276,28 +280,33 @@ const CalendarView: React.FC = () => {
                   });
                   setShowScheduleMeetingModal(true);
                 }}
-                className="w-full mt-6 py-3 bg-white text-primary rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-brand-100/50 transition-colors"
+                className="w-full mt-6 py-3 bg-white text-primary rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-brand-very-soft transition-colors shadow-lg relative z-10"
               >
                 <Plus size={16} /> Agendar Reunión
               </button>
             )}
           </div>
 
-          <div className="flex-1 bg-white rounded-3xl border border-brand-200 flex flex-col overflow-hidden shadow-sm">
-            <div className="p-5 border-b border-brand-100">
-              <h3 className="font-bold text-primary text-sm">Tareas Pendientes</h3>
+          <div className="flex-1 bg-white rounded-card border border-brand-very-soft/50 flex flex-col overflow-hidden shadow-card">
+            <div className="p-5 border-b border-brand-very-soft/30 bg-brand-very-soft/5">
+              <h3 className="font-bold text-primary text-sm flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-primary"></span>
+                Tareas Pendientes
+              </h3>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin scrollbar-thumb-brand-very-soft/50">
               {crmEvents.filter(e => e.type === 'crm_task').map(task => (
                 <div
                   key={task.id}
-                  className="group p-3 bg-brand-100/30 rounded-xl border border-transparent hover:border-brand-300 hover:bg-white transition-all cursor-pointer flex items-center gap-3"
+                  className="group p-3 bg-white rounded-xl border border-brand-very-soft/50 hover:border-brand-mid/50 hover:shadow-md transition-all cursor-pointer flex items-center gap-3"
                   onClick={() => task.schoolId && setSelectedSchoolId(task.schoolId)}
                 >
-                  <div className="w-5 h-5 rounded-full border-2 border-brand-300 group-hover:border-brand-600 transition-colors"></div>
+                  <div className="w-5 h-5 rounded-full border-2 border-brand-very-soft group-hover:border-primary transition-colors flex items-center justify-center">
+                    <div className="w-2.5 h-2.5 rounded-full bg-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
                   <div>
-                    <p className="text-xs font-bold text-primary leading-tight group-hover:text-brand-600">{task.title}</p>
-                    <p className="text-[10px] text-brand-400 mt-0.5 font-body">{task.schoolName}</p>
+                    <p className="text-xs font-bold text-primary leading-tight group-hover:text-brand-secondary transition-colors">{task.title}</p>
+                    <p className="text-[10px] text-brand-muted mt-0.5 font-body">{task.schoolName}</p>
                   </div>
                 </div>
               ))}
@@ -307,93 +316,27 @@ const CalendarView: React.FC = () => {
       </div>
 
       {showScheduleMeetingModal && (
-        <div className="fixed inset-0 z-50 bg-primary/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-brand-200 overflow-hidden">
-            <div className="bg-primary text-white p-5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="bg-purple-500 p-2 rounded-xl">
-                  <Calendar className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg">Agendar Reunión</h3>
-                  <p className="text-brand-200 text-xs font-body">Vincula la reunión a un centro</p>
-                </div>
+        <Modal
+          isOpen={showScheduleMeetingModal}
+          onClose={() => setShowScheduleMeetingModal(false)}
+          title={
+            <div className="flex items-center gap-3">
+              <div className="bg-purple-500/10 p-2 rounded-xl">
+                <CalendarIcon className="w-5 h-5 text-purple-600" />
               </div>
+              <div>
+                <h3 className="font-bold text-lg text-primary">Agendar Reunión</h3>
+                <p className="text-brand-500 text-xs font-body">Vincula la reunión a un centro</p>
+              </div>
+            </div>
+          }
+          maxWidth="md"
+          footer={
+            <>
               <button
                 type="button"
                 onClick={() => setShowScheduleMeetingModal(false)}
-                className="text-brand-200 hover:text-white p-1"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
-              <div>
-                <Select
-                  label="Centro"
-                  value={scheduleForm.selectedSchoolId}
-                  onChange={(id) => {
-                    const school = schools.find(s => s.id === id);
-                    setScheduleForm(prev => ({
-                      ...prev,
-                      selectedSchoolId: id,
-                      title: prev.title || (school ? `Reunión con ${school.name}` : ''),
-                    }));
-                  }}
-                  placeholder="Selecciona un centro"
-                  options={schools.map((s) => ({ value: s.id, label: s.name }))}
-                  className="min-w-0"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-brand-500 uppercase block mb-1">Título</label>
-                <input
-                  type="text"
-                  value={scheduleForm.title}
-                  onChange={(e) => setScheduleForm(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="Ej. Reunión de presentación"
-                  className="w-full p-3 bg-brand-100/50 border border-brand-200 rounded-xl text-sm font-body text-primary focus:ring-2 focus:ring-brand-100 outline-none"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <DateTimePicker
-                    label="Fecha"
-                    dateValue={scheduleForm.dueDate}
-                    onChangeDate={(dueDate) => setScheduleForm(prev => ({ ...prev, dueDate }))}
-                    showTime={false}
-                    placeholder="Elegir fecha"
-                    className="min-w-0"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-brand-500 uppercase block mb-1">Hora</label>
-                  <input
-                    type="time"
-                    value={scheduleForm.dueTime}
-                    onChange={(e) => setScheduleForm(prev => ({ ...prev, dueTime: e.target.value }))}
-                    className="w-full p-3 bg-brand-100/50 border border-brand-200 rounded-xl text-sm font-body text-primary focus:ring-2 focus:ring-brand-100 outline-none"
-                  />
-                </div>
-              </div>
-              {isGoogleCalendarConfigured() && (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="schedule-add-google"
-                    checked={scheduleForm.addToGoogleCalendar}
-                    onChange={(e) => setScheduleForm(prev => ({ ...prev, addToGoogleCalendar: e.target.checked }))}
-                    className="w-4 h-4 rounded border-brand-300 text-brand-600 focus:ring-primary"
-                  />
-                  <label htmlFor="schedule-add-google" className="text-sm text-brand-500 font-body">Añadir a Google Calendar</label>
-                </div>
-              )}
-            </div>
-            <div className="p-5 border-t border-brand-100 flex gap-3">
-              <button
-                type="button"
-                onClick={() => setShowScheduleMeetingModal(false)}
-                className="flex-1 py-2.5 rounded-xl border border-brand-200 text-brand-600 font-bold text-sm hover:bg-brand-100/50"
+                className="flex-1 py-2.5 rounded-xl border border-brand-200/60 text-brand-600 font-bold text-sm hover:bg-brand-100/50 transition-colors"
               >
                 Cancelar
               </button>
@@ -413,13 +356,76 @@ const CalendarView: React.FC = () => {
                   setShowScheduleMeetingModal(false);
                 }}
                 disabled={!scheduleForm.selectedSchoolId || !scheduleForm.title.trim()}
-                className="flex-1 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md"
               >
                 Agendar Reunión
               </button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <div>
+              <Select
+                label="Centro"
+                value={scheduleForm.selectedSchoolId}
+                onChange={(id) => {
+                  const school = schools.find(s => s.id === id);
+                  setScheduleForm(prev => ({
+                    ...prev,
+                    selectedSchoolId: id,
+                    title: prev.title || (school ? `Reunión con ${school.name}` : ''),
+                  }));
+                }}
+                placeholder="Selecciona un centro"
+                options={schools.map((s) => ({ value: s.id, label: s.name }))}
+                className="min-w-0"
+              />
             </div>
+            <div>
+              <label className="text-xs font-bold text-brand-600 uppercase block mb-1.5">Título</label>
+              <input
+                type="text"
+                value={scheduleForm.title}
+                onChange={(e) => setScheduleForm(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Ej. Reunión de presentación"
+                className="w-full p-3 bg-white border border-brand-200/60 rounded-xl text-sm font-body text-primary focus:ring-2 focus:ring-primary/20 outline-none placeholder:text-brand-soft shadow-sm transition-shadow"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <DateTimePicker
+                  label="Fecha"
+                  dateValue={scheduleForm.dueDate}
+                  onChangeDate={(dueDate) => setScheduleForm(prev => ({ ...prev, dueDate }))}
+                  showTime={false}
+                  placeholder="Elegir fecha"
+                  className="min-w-0"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-brand-600 uppercase block mb-1.5">Hora</label>
+                <input
+                  type="time"
+                  value={scheduleForm.dueTime}
+                  onChange={(e) => setScheduleForm(prev => ({ ...prev, dueTime: e.target.value }))}
+                  className="w-full p-3 bg-white border border-brand-200/60 rounded-xl text-sm font-body text-primary focus:ring-2 focus:ring-primary/20 outline-none shadow-sm transition-shadow"
+                />
+              </div>
+            </div>
+            {isGoogleCalendarConfigured() && (
+              <div className="flex items-center gap-2 p-3 bg-brand-50/50 rounded-xl border border-brand-100/50">
+                <input
+                  type="checkbox"
+                  id="schedule-add-google"
+                  checked={scheduleForm.addToGoogleCalendar}
+                  onChange={(e) => setScheduleForm(prev => ({ ...prev, addToGoogleCalendar: e.target.checked }))}
+                  className="w-4 h-4 rounded border-brand-300 text-primary focus:ring-primary"
+                />
+                <label htmlFor="schedule-add-google" className="text-sm text-brand-600 font-body font-medium cursor-pointer">Añadir a Google Calendar</label>
+              </div>
+            )}
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

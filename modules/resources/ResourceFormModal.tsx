@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   Link2,
-  X,
   Image,
   FileText,
   Film,
@@ -24,6 +23,7 @@ import type {
 import { buildFolderTree } from '../../services/resourceFolders';
 import type { ResourceFolder } from '../../types';
 import { Select } from '../tasks/Select';
+import { Modal } from '../../components/ui/Modal';
 
 interface FolderNode extends ResourceFolder {
   children: FolderNode[];
@@ -105,7 +105,7 @@ interface ResourceFormModalProps {
 }
 
 const selectClass =
-  'w-full rounded-lg border border-brand-200/60 px-3 py-2 text-sm font-body text-primary focus:border-primary focus:outline-none bg-white';
+  'w-full rounded-xl border border-brand-200/60 px-3 py-2 text-sm font-body text-primary focus:border-primary focus:outline-none bg-white placeholder:text-brand-soft';
 
 export function ResourceFormModal({
   isOpen,
@@ -176,197 +176,195 @@ export function ResourceFormModal({
   const tree = buildFolderTree(folders) as FolderNode[];
   const flatFolders = flattenFoldersForSelect(tree);
 
+  const footer = (
+    <>
+      <button
+        type="button"
+        onClick={onClose}
+        className="rounded-xl border border-brand-200/60 px-4 py-2 text-sm font-bold text-brand-700 hover:bg-white transition-colors"
+      >
+        Cancelar
+      </button>
+      <button
+        onClick={handleSubmit}
+        disabled={saving}
+        className="rounded-xl bg-primary px-5 py-2 text-sm font-bold text-white hover:bg-brand-600 transition-colors disabled:opacity-50 shadow-md"
+      >
+        {saving ? 'Guardando...' : 'Guardar'}
+      </button>
+    </>
+  );
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto">
-      <div className="w-full max-w-2xl rounded-2xl bg-white shadow-xl border border-brand-200/60 my-4 flex flex-col max-h-[calc(100vh-2rem)] overflow-hidden">
-        <div className="shrink-0 flex items-center justify-between gap-2 px-5 py-3 border-b border-brand-200/60">
-          <h2 className="text-lg font-title text-primary flex items-center gap-2">
-            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Link2 className="w-5 h-5 text-primary" />
-            </div>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Link2 className="w-5 h-5 text-primary" />
+          </div>
+          <span className="text-lg font-title text-primary">
             {editingResource ? 'Editar recurso' : 'Añadir archivo'}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 rounded-lg text-brand-500 hover:bg-brand-100/50 transition-colors"
-            aria-label="Cerrar"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          </span>
+        </div>
+      }
+      maxWidth="2xl"
+      footer={footer}
+    >
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Solo lo esencial: Enlace, Nombre, Carpeta */}
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-brand-600 mb-1">Enlace *</label>
+            <input
+              type="url"
+              value={form.url}
+              onChange={(e) => setForm((prev) => ({ ...prev, url: e.target.value }))}
+              placeholder="https://drive.google.com/..."
+              className={`${selectClass} py-2.5`}
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-brand-600 mb-1">Nombre *</label>
+            <input
+              type="text"
+              value={form.title}
+              onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+              placeholder="Ej: Contrato 2026, Deck..."
+              className={`${selectClass} py-2.5`}
+              required
+            />
+          </div>
+        </div>
+        <div>
+          <Select
+            label="Carpeta"
+            value={form.folderId ?? ''}
+            onChange={(v) => setForm((prev) => ({ ...prev, folderId: v || null }))}
+            placeholder="— Sin asignar —"
+            options={flatFolders.map((f) => ({ value: f.id, label: f.name }))}
+          />
+          {defaultFolderId && (
+            <p className="text-[11px] text-brand-500 mt-1">Por defecto: carpeta actual</p>
+          )}
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col min-h-0 overflow-y-auto">
-          <div className="p-5 space-y-4">
-            {/* Solo lo esencial: Enlace, Nombre, Carpeta */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-brand-600 mb-1">Enlace *</label>
-                <input
-                  type="url"
-                  value={form.url}
-                  onChange={(e) => setForm((prev) => ({ ...prev, url: e.target.value }))}
-                  placeholder="https://drive.google.com/..."
-                  className={`${selectClass} py-2.5`}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-brand-600 mb-1">Nombre *</label>
-                <input
-                  type="text"
-                  value={form.title}
-                  onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-                  placeholder="Ej: Contrato 2026, Deck..."
-                  className={`${selectClass} py-2.5`}
-                  required
-                />
-              </div>
+        {/* Tipo, Origen, Estado y más - opcionales en "Más opciones" */}
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="flex items-center gap-2 text-sm font-bold text-brand-500 hover:text-primary transition-colors mb-2"
+          >
+            <ChevronDown className={`w-4 h-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+            Más opciones
+          </button>
+
+          <div className={`
+             space-y-4 pl-4 border-l-2 border-brand-200/60 transition-all duration-300 ease-in-out overflow-hidden
+             ${showAdvanced ? 'max-h-[500px] opacity-100 mt-3' : 'max-h-0 opacity-0'}
+          `}>
+            <div>
+              <Select
+                label="Tipo"
+                value={form.type}
+                onChange={(v) => setForm((prev) => ({ ...prev, type: v as ResourceType }))}
+                placeholder="Seleccionar tipo"
+                options={TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+              />
             </div>
             <div>
               <Select
-                label="Carpeta"
-                value={form.folderId ?? ''}
-                onChange={(v) => setForm((prev) => ({ ...prev, folderId: v || null }))}
-                placeholder="— Sin asignar —"
-                options={flatFolders.map((f) => ({ value: f.id, label: f.name }))}
+                label="Origen"
+                value={form.source}
+                onChange={(v) => setForm((prev) => ({ ...prev, source: v as ResourceSource }))}
+                placeholder="Seleccionar origen"
+                options={SOURCE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
               />
-              {defaultFolderId && (
-                <p className="text-[11px] text-brand-500 mt-1">Por defecto: carpeta actual</p>
-              )}
             </div>
-
-            {/* Tipo, Origen, Estado y más - opcionales en "Más opciones" */}
             <div>
-              <button
-                type="button"
-                onClick={() => setShowAdvanced((v) => !v)}
-                className="flex items-center gap-2 text-sm font-bold text-brand-500 hover:text-primary transition-colors"
-              >
-                <ChevronDown className={`w-4 h-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
-                Más opciones
-              </button>
-              {showAdvanced && (
-                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4 pl-4 border-l-2 border-brand-200/60">
-                  <div>
-                    <Select
-                      label="Tipo"
-                      value={form.type}
-                      onChange={(v) => setForm((prev) => ({ ...prev, type: v as ResourceType }))}
-                      placeholder="Seleccionar tipo"
-                      options={TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
-                    />
-                  </div>
-                  <div>
-                    <Select
-                      label="Origen"
-                      value={form.source}
-                      onChange={(v) => setForm((prev) => ({ ...prev, source: v as ResourceSource }))}
-                      placeholder="Seleccionar origen"
-                      options={SOURCE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
-                    />
-                  </div>
-                  <div>
-                    <Select
-                      label="Estado"
-                      value={form.status}
-                      onChange={(v) => setForm((prev) => ({ ...prev, status: v as ResourceStatus }))}
-                      placeholder="Seleccionar estado"
-                      options={STATUS_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-bold text-brand-500 mb-1">Versión</label>
-                    <input
-                      type="text"
-                      value={form.version}
-                      onChange={(e) => setForm((prev) => ({ ...prev, version: e.target.value }))}
-                      placeholder="v1, 2026..."
-                      className={selectClass}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-brand-500 mb-1">Descripción</label>
-                    <input
-                      type="text"
-                      value={form.description}
-                      onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                      placeholder="Opcional"
-                      className={selectClass}
-                    />
-                  </div>
-                  {!editingResource && (
-                    <>
-                      <div>
-                        <Select
-                          label="Vincular a"
-                          value={form.linkToEntityType}
-                          onChange={(v) =>
-                            setForm((prev) => ({
-                              ...prev,
-                              linkToEntityType: v as ResourceEntityType | '',
-                            }))
-                          }
-                          placeholder="— No vincular —"
-                          options={[
-                            { value: 'client', label: 'Lead' },
-                            { value: 'deal', label: 'Deal' },
-                            { value: 'project', label: 'Proyecto' },
-                            { value: 'task', label: 'Tarea' },
-                            { value: 'internal', label: 'Interno' },
-                          ]}
-                        />
-                      </div>
-                      {form.linkToEntityType && form.linkToEntityType !== 'internal' && (
-                        <div>
-                          <label className="block text-xs font-bold text-brand-500 mb-1">ID entidad</label>
-                          <input
-                            type="text"
-                            value={form.linkToEntityId}
-                            onChange={(e) => setForm((prev) => ({ ...prev, linkToEntityId: e.target.value }))}
-                            placeholder="UUID"
-                            className={selectClass}
-                          />
-                        </div>
-                      )}
-                      {form.linkToEntityType && (
-                        <div className="sm:col-span-2 flex items-center">
-                          <label className="flex items-center gap-2 text-sm font-body">
-                            <input
-                              type="checkbox"
-                              checked={form.isPrimary}
-                              onChange={(e) => setForm((prev) => ({ ...prev, isPrimary: e.target.checked }))}
-                              className="rounded border-brand-300"
-                            />
-                            Marcar como principal
-                          </label>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
+              <Select
+                label="Estado"
+                value={form.status}
+                onChange={(v) => setForm((prev) => ({ ...prev, status: v as ResourceStatus }))}
+                placeholder="Seleccionar estado"
+                options={STATUS_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+              />
             </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-brand-500 mb-1">Versión</label>
+              <input
+                type="text"
+                value={form.version}
+                onChange={(e) => setForm((prev) => ({ ...prev, version: e.target.value }))}
+                placeholder="v1, 2026..."
+                className={selectClass}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-brand-500 mb-1">Descripción</label>
+              <input
+                type="text"
+                value={form.description}
+                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="Opcional"
+                className={selectClass}
+              />
+            </div>
+            {!editingResource && (
+              <>
+                <div>
+                  <Select
+                    label="Vincular a"
+                    value={form.linkToEntityType}
+                    onChange={(v) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        linkToEntityType: v as ResourceEntityType | '',
+                      }))
+                    }
+                    placeholder="— No vincular —"
+                    options={[
+                      { value: 'client', label: 'Lead' },
+                      { value: 'deal', label: 'Deal' },
+                      { value: 'project', label: 'Proyecto' },
+                      { value: 'task', label: 'Tarea' },
+                      { value: 'internal', label: 'Interno' },
+                    ]}
+                  />
+                </div>
+                {form.linkToEntityType && form.linkToEntityType !== 'internal' && (
+                  <div>
+                    <label className="block text-xs font-bold text-brand-500 mb-1">ID entidad</label>
+                    <input
+                      type="text"
+                      value={form.linkToEntityId}
+                      onChange={(e) => setForm((prev) => ({ ...prev, linkToEntityId: e.target.value }))}
+                      placeholder="UUID"
+                      className={selectClass}
+                    />
+                  </div>
+                )}
+                {form.linkToEntityType && (
+                  <div className="sm:col-span-2 flex items-center">
+                    <label className="flex items-center gap-2 text-sm font-body">
+                      <input
+                        type="checkbox"
+                        checked={form.isPrimary}
+                        onChange={(e) => setForm((prev) => ({ ...prev, isPrimary: e.target.checked }))}
+                        className="rounded border-brand-300 text-primary focus:ring-primary"
+                      />
+                      Marcar como principal
+                    </label>
+                  </div>
+                )}
+              </>
+            )}
           </div>
-
-          <div className="shrink-0 flex justify-end gap-3 p-4 border-t border-brand-200/60 bg-brand-50/30">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl border border-brand-200/60 px-4 py-2 text-sm font-bold text-brand-700 hover:bg-white transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-xl bg-primary px-5 py-2 text-sm font-bold text-white hover:bg-brand-600 transition-colors disabled:opacity-50 shadow-md"
-            >
-              {saving ? 'Guardando...' : 'Guardar'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </div>
+      </form>
+    </Modal>
   );
 }

@@ -11,19 +11,19 @@ import FinanceIncomePage from './modules/finance/FinanceIncomePage';
 import FinanceExpensesPage from './modules/finance/FinanceExpensesPage';
 import FinanceForecastPage from './modules/finance/FinanceForecastPage';
 import Dashboard from './components/Dashboard';
-import PipelineView from './components/PipelineView';
+import TableView from './modules/crm/TableView';
+import OnboardingView from './modules/crm/OnboardingView';
+import PipelineView from './modules/crm/PipelineView';
 import CalendarView from './components/CalendarView';
 import Importer from './components/Importer';
 import SettingsView from './components/SettingsView';
-import ClientsListPage from './components/clients/ClientsListPage';
-import ClientDetailPage from './components/clients/ClientDetailPage';
-import DealsListPage from './components/deals/DealsListPage';
-import ProjectsListPage from './components/projects/ProjectsListPage';
+// Legacy Lists Removed
 import ResourcesView from './modules/resources/ResourcesView';
 import TasksView from './modules/tasks/TasksView';
 import ReportingView from './modules/reporting/ReportingView';
 import IntegrationsView from './modules/integrations/IntegrationsView';
 import GlobalSettingsView from './modules/settings/SettingsView';
+import SchoolDetailPage from './modules/crm/SchoolDetailPage';
 import FinnyFloatingChat from './modules/agent/FinnyFloatingChat';
 
 const TOOL_PATHS = ['/crm', '/tasks', '/resources', '/finance', '/reporting', '/integrations', '/settings'];
@@ -53,7 +53,7 @@ const App: React.FC = () => {
     );
   }
   if (isSupabaseConfigured() && !user) {
-    return <Login onSuccess={() => {}} />;
+    return <Login onSuccess={() => { }} />;
   }
 
   return (
@@ -64,11 +64,16 @@ const App: React.FC = () => {
         <Route path="crm" element={<CRMLayout />}>
           <Route index element={<Navigate to="/crm/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="leads" element={<ClientsListPage />} />
-          <Route path="leads/:id" element={<ClientDetailPage />} />
-          <Route path="deals" element={<DealsListPage />} />
-          <Route path="projects" element={<ProjectsListPage />} />
+          <Route path="leads" element={<TableView />} />
+          <Route path="schools/:id" element={<SchoolDetailPage />} />
+          <Route path="leads/:id" element={<Navigate to="/crm/leads" replace />} />
+          {/* Unified Views */}
           <Route path="pipeline" element={<PipelineView />} />
+          <Route path="onboarding" element={<OnboardingView />} />
+
+          {/* Legacy Redirects */}
+          <Route path="deals" element={<Navigate to="/crm/pipeline" replace />} />
+          <Route path="projects" element={<Navigate to="/crm/onboarding" replace />} />
           <Route path="schools" element={<Navigate to="/crm/leads" replace />} />
           <Route path="calendar" element={<CalendarView />} />
           <Route path="import" element={<Importer />} />

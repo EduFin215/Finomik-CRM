@@ -148,9 +148,9 @@ export default function ResourcesView() {
       const linkFromForm =
         form.linkToEntityType && (form.linkToEntityType === 'internal' || form.linkToEntityId.trim())
           ? {
-              entityType: form.linkToEntityType,
-              entityId: form.linkToEntityType === 'internal' ? null : form.linkToEntityId.trim(),
-            }
+            entityType: form.linkToEntityType,
+            entityId: form.linkToEntityType === 'internal' ? null : form.linkToEntityId.trim(),
+          }
           : undefined;
       const linkTo = linkFromFolder ?? linkFromForm;
       await createResource({
@@ -228,7 +228,7 @@ export default function ResourcesView() {
         <div
           className={`
             sidebar-dark fixed lg:static inset-y-0 left-0 z-50 w-64 transform transition-transform duration-200 ease-out h-full flex flex-col
-            bg-primary/95 backdrop-blur-xl text-white border-r-0
+            bg-gradient-sidebar text-white shadow-2xl border-r-0
             ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           `}
         >
@@ -249,8 +249,7 @@ export default function ResourcesView() {
           </div>
           {/* Barra fija de ruta (siempre visible) */}
           <div
-            className="shrink-0 px-4 sm:px-6 py-3 flex items-center justify-between gap-4"
-            style={{ background: '#0B3064' }}
+            className="shrink-0 px-4 sm:px-6 py-3 flex items-center justify-between gap-4 bg-primary text-white shadow-md relative z-10"
           >
             <nav className="flex items-center gap-1 flex-wrap min-w-0" aria-label="Ruta de carpetas">
               {breadcrumbPath.length === 0 ? (
@@ -270,11 +269,10 @@ export default function ResourcesView() {
                       <button
                         type="button"
                         onClick={() => setSelectedFolderId(f.id)}
-                        className={`text-sm font-bold py-1 px-2 rounded-lg transition-colors ${
-                          i === breadcrumbPath.length - 1
+                        className={`text-sm font-bold py-1 px-2 rounded-lg transition-colors ${i === breadcrumbPath.length - 1
                             ? 'text-white bg-white/15'
                             : 'text-white/90 hover:text-white hover:bg-white/10'
-                        }`}
+                          }`}
                       >
                         {f.name}
                       </button>

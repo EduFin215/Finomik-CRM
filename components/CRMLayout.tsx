@@ -13,6 +13,7 @@ import {
   Settings,
   PlusCircle,
   Menu,
+  CheckSquare,
 } from 'lucide-react';
 import { School, Phase, CommercialStatus, TaskPriority } from '../types';
 import { getSchools, createSchool, updateSchool as updateSchoolApi, deleteSchool, createTask } from '../services/schools';
@@ -21,7 +22,6 @@ import { isSupabaseConfigured } from '../services/supabase';
 import { syncTaskToGoogleCalendar } from '../services/googleCalendar';
 import { useUpcomingReminders, getUpcomingReminderItems } from '../hooks/useUpcomingReminders';
 import { useReminderSettings } from '../hooks/useReminderSettings';
-import SchoolDetail from './SchoolDetail';
 import NewSchoolModal from './NewSchoolModal';
 import { ToolLayout } from './layout/ToolLayout';
 import { SidebarNav } from './layout/SidebarNav';
@@ -80,7 +80,7 @@ function CRMLayoutInner() {
   const notificationsSlot = (
     <NotificationsDropdown
       upcomingReminders={upcomingReminders}
-      onSelectSchool={setSelectedSchoolId}
+      onSelectSchool={(id) => navigate(`/crm/schools/${id}`)}
       onGoToCalendar={() => navigate('/crm/calendar')}
     />
   );
@@ -92,87 +92,78 @@ function CRMLayoutInner() {
       notificationsSlot={notificationsSlot}
     >
       <div className="flex h-full w-full overflow-hidden bg-white">
-      <SidebarNav
-        variant="dark"
-        topSlot={
-          <>
-            {!isSupabaseConfigured() && (
-              <div className="mb-2 px-3 py-2 rounded-lg bg-amber-500/20 text-amber-200 text-xs font-body">
-                Configura Supabase en .env para persistir datos.
-              </div>
-            )}
+        <SidebarNav
+          variant="dark"
+          topSlot={
+            <>
+              {!isSupabaseConfigured() && (
+                <div className="mb-2 px-3 py-2 rounded-lg bg-amber-500/20 text-amber-200 text-xs font-body">
+                  Configura Supabase en .env para persistir datos.
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => openNewSchoolModal()}
+                className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-primary/30"
+              >
+                <PlusCircle size={20} />
+                <span>Nuevo Lead</span>
+              </button>
+            </>
+          }
+          items={[
+            { to: '/crm/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+            { to: '/crm/leads', label: 'Escuelas', icon: TableIcon }, // Was "Leads"
+          ]}
+          groups={[
+            {
+              label: 'Flujos de Trabajo',
+              items: [
+                { to: '/crm/pipeline', label: 'Ventas', icon: Briefcase },
+                { to: '/crm/onboarding', label: 'Onboarding y Clientes', icon: Kanban },
+              ],
+            },
+            {
+              label: 'Herramientas',
+              items: [
+                { to: '/crm/import', label: 'Importar Excel', icon: Upload },
+              ],
+            },
+          ]}
+          footerItems={[{ to: '/crm/settings', label: 'Configuración', icon: Settings }]}
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          onNavigate={() => setSidebarOpen(false)}
+        />
+
+        <main className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-brand-100 lg:hidden">
             <button
               type="button"
-              onClick={() => openNewSchoolModal()}
-              className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-primary/30"
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 text-brand-600 hover:bg-brand-100/50 rounded-xl shrink-0"
+              aria-label="Abrir menú"
             >
-              <PlusCircle size={20} />
-              <span>Nuevo Lead</span>
+              <Menu size={24} />
             </button>
-          </>
-        }
-        items={[
-          { to: '/crm/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-          { to: '/crm/leads', label: 'Leads', icon: TableIcon },
-          { to: '/crm/deals', label: 'Deals', icon: Briefcase },
-          { to: '/crm/projects', label: 'Projects', icon: FolderOpen },
-        ]}
-        groups={[
-          {
-            label: 'Pipeline',
-            items: [{ to: '/crm/pipeline', label: 'Pipeline (Kanban)', icon: Kanban }],
-          },
-          {
-            label: 'Actividad',
-            items: [
-              { to: '/crm/import', label: 'Importar Excel', icon: Upload },
-            ],
-          },
-        ]}
-        footerItems={[{ to: '/crm/settings', label: 'Configuración', icon: Settings }]}
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onNavigate={() => setSidebarOpen(false)}
-      />
+          </div>
+          <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
+            {isLoading && (
+              <div className="flex items-center justify-center py-20">
+                <p className="text-brand-500 font-body">Cargando...</p>
+              </div>
+            )}
+            {error && (
+              <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-red-700 text-sm font-body">
+                Error al cargar datos. Revisa la consola y tu configuración de Supabase.
+              </div>
+            )}
+            {!isLoading && !error && <Outlet />}
+          </div>
+        </main>
 
-      <main className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-brand-100 lg:hidden">
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 text-brand-600 hover:bg-brand-100/50 rounded-xl shrink-0"
-            aria-label="Abrir menú"
-          >
-            <Menu size={24} />
-          </button>
-        </div>
-        <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
-          {isLoading && (
-            <div className="flex items-center justify-center py-20">
-              <p className="text-brand-500 font-body">Cargando...</p>
-            </div>
-          )}
-          {error && (
-            <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-red-700 text-sm font-body">
-              Error al cargar datos. Revisa la consola y tu configuración de Supabase.
-            </div>
-          )}
-          {!isLoading && !error && <Outlet />}
-        </div>
-      </main>
-
-      <ToastContainer />
-
-      {selectedSchool && (
-        <SchoolDetail
-          school={selectedSchool}
-          onClose={() => setSelectedSchoolId(null)}
-          onUpdate={updateSchool}
-          onDelete={isSupabaseConfigured() ? deleteSchoolFromContext : undefined}
-          refetchSchools={refetchSchools}
-        />
-      )}
-    </div>
+        <ToastContainer />
+      </div>
     </ToolLayout>
   );
 }
